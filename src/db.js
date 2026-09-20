@@ -13,6 +13,8 @@ db.exec(`
     phone TEXT,
     email TEXT,
     instagram TEXT,
+    category TEXT,
+    area TEXT,
     status TEXT NOT NULL DEFAULT 'INSPECTED',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -40,15 +42,27 @@ db.exec(`
   );
 `);
 
+function ensureColumn(table, column, definition) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!columns.some((item) => item.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+ensureColumn("leads", "category", "TEXT");
+ensureColumn("leads", "area", "TEXT");
+
 const upsertLeadStmt = db.prepare(`
-  INSERT INTO leads (name, source_url, page_title, phone, email, instagram, status)
-  VALUES (@name, @sourceUrl, @pageTitle, @phone, @email, @instagram, @status)
+  INSERT INTO leads (name, source_url, page_title, phone, email, instagram, category, area, status)
+  VALUES (@name, @sourceUrl, @pageTitle, @phone, @email, @instagram, @category, @area, @status)
   ON CONFLICT(source_url) DO UPDATE SET
     name = excluded.name,
     page_title = excluded.page_title,
     phone = excluded.phone,
     email = excluded.email,
     instagram = excluded.instagram,
+    category = COALESCE(excluded.category, leads.category),
+    area = COALESCE(excluded.area, leads.area),
     status = excluded.status,
     updated_at = CURRENT_TIMESTAMP
 `);
@@ -80,6 +94,8 @@ const listLeadsStmt = db.prepare(`
     phone,
     email,
     instagram,
+    category,
+    area,
     status,
     created_at AS createdAt,
     updated_at AS updatedAt
@@ -115,6 +131,8 @@ export function listReviewLeads({ unsentOnly = false } = {}) {
       l.phone,
       l.email,
       l.instagram,
+      l.category,
+      l.area,
       l.source_url AS sourceUrl,
       l.status,
       v.verdict,
