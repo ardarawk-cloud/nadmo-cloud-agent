@@ -44,8 +44,28 @@ const logStmt = db.prepare(`
   VALUES (?, ?)
 `);
 
+const listLeadsStmt = db.prepare(`
+  SELECT
+    id,
+    name,
+    source_url AS sourceUrl,
+    page_title AS pageTitle,
+    phone,
+    email,
+    instagram,
+    status,
+    created_at AS createdAt,
+    updated_at AS updatedAt
+  FROM leads
+  ORDER BY updated_at DESC, id DESC
+`);
+
 export function upsertLead(lead) {
   upsertLeadStmt.run(lead);
+}
+
+export function listLeads() {
+  return listLeadsStmt.all();
 }
 
 export function logActivity(action, details = {}) {
