@@ -40,6 +40,22 @@ db.exec(`
   );
 `);
 
+const notificationCount = db.prepare("SELECT COUNT(*) AS count FROM discord_notifications").get().count;
+const sentBeforeTracking = db.prepare(
+  "SELECT COUNT(*) AS count FROM activity_log WHERE action = 'DISCORD_NOTIFY'"
+).get().count;
+
+if (notificationCount === 0 && sentBeforeTracking > 0) {
+  db.exec(`
+    INSERT OR IGNORE INTO discord_notifications (lead_id)
+    SELECT l.id
+    FROM leads l
+    JOIN lead_verifications v ON v.lead_id = l.id
+    WHERE v.verdict IN ('NO_OFFICIAL_SITE_FOUND', 'SOCIAL_ONLY', 'DEAD_WEBSITE')
+      AND (l.phone IS NOT NULL OR l.email IS NOT NULL OR l.instagram IS NOT NULL);
+  `);
+}
+
 const upsertLeadStmt = db.prepare(`
   INSERT INTO leads (name, source_url, page_title, phone, email, instagram, status)
   VALUES (@name, @sourceUrl, @pageTitle, @phone, @email, @instagram, @status)
