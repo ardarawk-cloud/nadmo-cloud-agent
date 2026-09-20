@@ -1,0 +1,19 @@
+{
+  "name": "nadmo-cloud-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "NADMO Cloud Agent — safe browser-worker foundation for NADMO Scout",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "scout": "node src/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "dotenv": "^16.4.7",
+    "playwright": "^1.51.1"
+  }
+}
