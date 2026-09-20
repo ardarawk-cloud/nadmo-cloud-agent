@@ -1,3 +1,5 @@
+import { chromium } from "playwright";
+
 const DIRECTORY_HOSTS = [
   "tripadvisor.com",
   "trip.com",
@@ -152,15 +154,49 @@ async function websiteReachable(url) {
       }
     });
 
-    return {
-      ok: response.status >= 200 && response.status < 400,
-      finalUrl: response.url || url,
-      status: response.status
-    };
+    if (response.status >= 200 && response.status < 400) {
+      return {
+        ok: true,
+        finalUrl: response.url || url,
+        status: response.status,
+        checkedBy: "fetch"
+      };
+    }
   } catch {
-    return { ok: false, finalUrl: url, status: null };
+    // Fall through to a real browser check. Some sites block plain HTTP clients.
   } finally {
     clearTimeout(timer);
+  }
+
+  let browser;
+  try {
+    browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage({
+      userAgent:
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130 Safari/537.36"
+    });
+
+    const response = await page.goto(url, {
+      waitUntil: "domcontentloaded",
+      timeout: 12000
+    });
+
+    const status = response?.status() ?? null;
+    return {
+      ok: Boolean(response && status >= 200 && status < 400),
+      finalUrl: page.url() || url,
+      status,
+      checkedBy: "playwright"
+    };
+  } catch {
+    return {
+      ok: false,
+      finalUrl: url,
+      status: null,
+      checkedBy: "playwright"
+    };
+  } finally {
+    if (browser) await browser.close();
   }
 }
 
@@ -207,7 +243,13 @@ export async function verifyLeadOnWeb(lead, apiKey) {
 
   const websiteCandidates = uniqueResults
     .filter((result) => !isSocial(result.link) && !isDirectory(result.link))
-    .map((result) => ({ ...result, score: resultScore(lead, result) }))
+    .map((result) => ({
+      ...result,
+      score: resultScore(lead, result),
+      brandDomainMatch: domainMatchesBrand(lead.name, result.link),
+      brandTitleMatch: textMatchesBrand(lead.name, result.title),
+      matchedPhone: phoneMatches(lead, result)
+    }))
     .filter((result) => result.score >= 5)
     .sort((a, b) => b.score - a.score);
 
@@ -225,14 +267,19 @@ export async function verifyLeadOnWeb(lead, apiKey) {
     }
   }
 
-  if (websiteCandidates.length > 0) {
-    const candidate = websiteCandidates[0];
+  const deadSiteCandidate = websiteCandidates.find(
+    (candidate) =>
+      candidate.brandDomainMatch ||
+      (candidate.matchedPhone && candidate.brandTitleMatch)
+  );
+
+  if (deadSiteCandidate) {
     return {
       leadId: lead.id,
       verdict: "DEAD_WEBSITE",
-      officialUrl: candidate.link,
-      evidenceTitle: candidate.title ?? null,
-      evidenceSnippet: candidate.snippet ?? null
+      officialUrl: deadSiteCandidate.link,
+      evidenceTitle: deadSiteCandidate.title ?? null,
+      evidenceSnippet: deadSiteCandidate.snippet ?? null
     };
   }
 
