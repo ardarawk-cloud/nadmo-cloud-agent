@@ -24,6 +24,15 @@ db.exec(`
     details TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS lead_verifications (
+    lead_id INTEGER PRIMARY KEY,
+    verdict TEXT NOT NULL,
+    official_url TEXT,
+    evidence_title TEXT,
+    evidence_snippet TEXT,
+    checked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 const upsertLeadStmt = db.prepare(`
@@ -42,6 +51,19 @@ const upsertLeadStmt = db.prepare(`
 const logStmt = db.prepare(`
   INSERT INTO activity_log (action, details)
   VALUES (?, ?)
+`);
+
+const saveVerificationStmt = db.prepare(`
+  INSERT INTO lead_verifications (
+    lead_id, verdict, official_url, evidence_title, evidence_snippet, checked_at
+  )
+  VALUES (@leadId, @verdict, @officialUrl, @evidenceTitle, @evidenceSnippet, CURRENT_TIMESTAMP)
+  ON CONFLICT(lead_id) DO UPDATE SET
+    verdict = excluded.verdict,
+    official_url = excluded.official_url,
+    evidence_title = excluded.evidence_title,
+    evidence_snippet = excluded.evidence_snippet,
+    checked_at = CURRENT_TIMESTAMP
 `);
 
 const listLeadsStmt = db.prepare(`
@@ -70,6 +92,10 @@ export function listLeads() {
 
 export function logActivity(action, details = {}) {
   logStmt.run(action, JSON.stringify(details));
+}
+
+export function saveVerification(verification) {
+  saveVerificationStmt.run(verification);
 }
 
 export function closeDb() {
