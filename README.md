@@ -1,55 +1,31 @@
 # NADMO Cloud Agent
 
-A self-hosted cloud-agent project for NADMO Studio.
+Self-hosted cloud-agent project for NADMO Studio.
 
-## Current phase: Scout MVP foundation
+## Current phase: Scout MVP v0.2
 
-Version 0.1 is intentionally limited. It gives us the safe building blocks for a future cloud employee:
+The VPS worker can now:
+- run Chromium headlessly through Playwright
+- inspect public websites
+- extract public phone/email/Instagram links exposed by a page
+- store results in SQLite
+- keep an activity log
+- discover candidate URLs from a natural-language search query
+- keep outreach, publishing, and purchasing disabled by default
 
-- Chromium browser worker via Playwright
-- Persistent SQLite memory
-- Activity log
-- Environment-based safety gates
-- CLI for inspecting public business URLs
-- No automatic outreach, publishing, purchasing, or production changes
-
-## Architecture
-
-```text
-Arda / phone
-    |
-    v
-NADMO Agent Controller
-    |
-    +-- Browser worker (Playwright + Chromium)
-    +-- Scout logic
-    +-- SQLite memory
-    +-- Activity log
-    +-- Safety gates / approval layer
-```
-
-## Local/VPS setup
-
-Requirements:
-- Ubuntu or another Linux host
-- Node.js 20+
-- 2 vCPU / 4 GB RAM recommended for the first MVP
-
-Install:
-
-```bash
-npm install
-npx playwright install --with-deps chromium
-cp .env.example .env
-```
-
-Test:
+## Inspect one known URL
 
 ```bash
 npm run scout -- https://example.com
 ```
 
-The result is stored in `nadmo-agent.db`.
+## Discovery test
+
+```bash
+npm run discover -- "makeup artist denpasar bali" 10
+```
+
+Discovery only finds public candidate URLs, inspects them, and stores results. It does not contact anyone.
 
 ## Safety defaults
 
@@ -59,16 +35,14 @@ ALLOW_PUBLISH=false
 ALLOW_PURCHASE=false
 ```
 
-Keep these disabled until an explicit human-approval workflow exists.
-
 ## Roadmap
+1. Phase 0 — browser + memory foundation ✅
+2. Phase 1A — public candidate discovery ✅
+3. Phase 1B — business qualification and duplicate filtering
+4. Phase 2 — Google Sheets reporting
+5. Phase 3 — Discord control + approval commands
+6. Phase 4 — draft outreach
+7. Phase 5 — scheduler and 24/7 runtime
+8. Phase 6 — additional agents (Client Ops, Finance, Web Ops)
 
-1. Phase 0 — browser + memory foundation
-2. Phase 1 — business discovery and qualification
-3. Phase 2 — Google Sheets reporting
-4. Phase 3 — Discord control + approval buttons/commands
-5. Phase 4 — draft outreach
-6. Phase 5 — scheduler and 24/7 VPS runtime
-7. Phase 6 — additional NADMO agents (Client Ops, Finance, Web Ops)
-
-See `docs/SCOUT-SOP.md` for the operating rules.
+See `docs/SCOUT-SOP.md` for operating rules.
