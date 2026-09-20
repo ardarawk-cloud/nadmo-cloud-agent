@@ -22,8 +22,7 @@ function buildFilters(category) {
   if (/makeup|make-up|mua/.test(c)) {
     return [
       '["beauty"="makeup"]',
-      '["shop"="beauty"]',
-      '["name"~"makeup|make-up|mua",i]'
+      '["name"~"makeup|make-up|mua|make up",i]'
     ];
   }
   if (/salon|beauty|hair/.test(c)) {
@@ -81,10 +80,35 @@ async function overpass(bbox, filters) {
   return Array.isArray(data.elements) ? data.elements : [];
 }
 
-function normalizeElement(element, locationLabel) {
+function matchesCategory(element, category) {
+  const tags = element.tags ?? {};
+  const c = category.toLowerCase();
+  const name = String(tags.name ?? tags.brand ?? tags.operator ?? "").toLowerCase();
+
+  if (/makeup|make-up|mua/.test(c)) {
+    return tags.beauty === "makeup" || /makeup|make-up|make up|\bmua\b/i.test(name);
+  }
+
+  if (/salon|beauty|hair/.test(c)) {
+    return tags.shop === "beauty" || tags.shop === "hairdresser";
+  }
+
+  if (/guest|hotel|villa|homestay|resort|hostel/.test(c)) {
+    return ["guest_house", "hotel", "hostel", "resort"].includes(tags.tourism);
+  }
+
+  if (/restaurant|cafe|coffee|food/.test(c)) {
+    return ["restaurant", "cafe"].includes(tags.amenity);
+  }
+
+  return name.includes(c.trim());
+}
+
+function normalizeElement(element, locationLabel, category) {
   const tags = element.tags ?? {};
   const name = first(tags, ["name", "brand", "operator"]);
   if (!name) return null;
+  if (!matchesCategory(element, category)) return null;
 
   const website = first(tags, ["website", "contact:website", "url"]);
   const instagram = first(tags, ["contact:instagram", "instagram"]);
@@ -111,7 +135,7 @@ export async function discoverLocalBusinesses(location, category, limit = 10) {
   const results = [];
 
   for (const element of elements) {
-    const item = normalizeElement(element, bbox.displayName);
+    const item = normalizeElement(element, bbox.displayName, category);
     if (!item) continue;
     const key = `${item.name.toLowerCase()}|${item.sourceUrl}`;
     if (seen.has(key)) continue;
