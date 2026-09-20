@@ -1,6 +1,6 @@
 {
   "name": "nadmo-cloud-agent",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "description": "NADMO Cloud Agent — safe browser-worker foundation for NADMO Scout",
@@ -14,7 +14,8 @@
     "discover:local": "node src/local-discover-cli.js",
     "qualify": "node src/qualify-cli.js",
     "campaign": "node src/campaign-cli.js",
-    "verify": "node src/verify-cli.js"
+    "verify": "node src/verify-cli.js",
+    "leads": "node src/leads-cli.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1",
