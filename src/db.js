@@ -33,6 +33,11 @@ db.exec(`
     evidence_snippet TEXT,
     checked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS discord_notifications (
+    lead_id INTEGER PRIMARY KEY,
+    sent_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 const upsertLeadStmt = db.prepare(`
@@ -98,7 +103,11 @@ export function saveVerification(verification) {
   saveVerificationStmt.run(verification);
 }
 
-export function listReviewLeads() {
+export function listReviewLeads({ unsentOnly = false } = {}) {
+  const unsentClause = unsentOnly
+    ? "AND NOT EXISTS (SELECT 1 FROM discord_notifications d WHERE d.lead_id = l.id)"
+    : "";
+
   return db.prepare(`
     SELECT
       l.id,
@@ -115,12 +124,27 @@ export function listReviewLeads() {
     JOIN lead_verifications v ON v.lead_id = l.id
     WHERE v.verdict IN ('NO_OFFICIAL_SITE_FOUND', 'SOCIAL_ONLY', 'DEAD_WEBSITE')
       AND (l.phone IS NOT NULL OR l.email IS NOT NULL OR l.instagram IS NOT NULL)
+      ${unsentClause}
     ORDER BY
       CASE WHEN l.phone IS NOT NULL THEN 1 ELSE 0 END DESC,
       CASE WHEN l.email IS NOT NULL THEN 1 ELSE 0 END DESC,
       CASE WHEN l.instagram IS NOT NULL THEN 1 ELSE 0 END DESC,
       l.updated_at DESC
   `).all();
+}
+
+export function markDiscordNotified(leadIds) {
+  const stmt = db.prepare(`
+    INSERT INTO discord_notifications (lead_id)
+    VALUES (?)
+    ON CONFLICT(lead_id) DO NOTHING
+  `);
+
+  const tx = db.transaction((ids) => {
+    for (const id of ids) stmt.run(id);
+  });
+
+  tx(leadIds);
 }
 
 export function closeDb() {
