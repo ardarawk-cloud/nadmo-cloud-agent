@@ -1,8 +1,15 @@
+function isDiscoveryLead(lead) {
+  return lead.status === "DISCOVERED_HAS_WEBSITE" ||
+    lead.status === "DISCOVERED_NO_WEBSITE";
+}
+
 function hasWebsite(lead) {
   return lead.status === "DISCOVERED_HAS_WEBSITE";
 }
 
 export function qualifyLead(lead) {
+  if (!isDiscoveryLead(lead)) return null;
+
   let score = 0;
   const reasons = [];
 
@@ -31,7 +38,6 @@ export function qualifyLead(lead) {
   let recommendation = "LOW_PRIORITY";
   if (score >= 70) recommendation = "STRONG_VERIFY";
   else if (score >= 50) recommendation = "VERIFY";
-  else if (score >= 25) recommendation = "LOW_PRIORITY";
 
   return {
     ...lead,
@@ -44,5 +50,6 @@ export function qualifyLead(lead) {
 export function rankLeads(leads) {
   return leads
     .map(qualifyLead)
+    .filter(Boolean)
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
 }
