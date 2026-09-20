@@ -179,7 +179,7 @@ function matchesCategory(element, category) {
   return name.includes(c.trim());
 }
 
-function normalizeElement(element, locationLabel, category) {
+function normalizeElement(element, locationLabel, category, areaLabel) {
   const tags = element.tags ?? {};
   const name = first(tags, ["name", "brand", "operator"]);
   if (!name) return null;
@@ -197,6 +197,8 @@ function normalizeElement(element, locationLabel, category) {
     phone,
     email,
     instagram,
+    category,
+    area: areaLabel,
     status: website ? "DISCOVERED_HAS_WEBSITE" : "DISCOVERED_NO_WEBSITE"
   };
 }
@@ -210,7 +212,7 @@ export async function discoverLocalBusinesses(location, category, limit = 10) {
   const results = [];
 
   for (const element of elements) {
-    const item = normalizeElement(element, bbox.displayName, category);
+    const item = normalizeElement(element, bbox.displayName, category, location);
     if (!item) continue;
     const key = `${item.name.toLowerCase()}|${item.sourceUrl}`;
     if (seen.has(key)) continue;
