@@ -39,6 +39,24 @@ function buildFilters(category) {
   if (/restaurant|cafe|coffee|food/.test(c)) {
     return ['["amenity"="restaurant"]', '["amenity"="cafe"]'];
   }
+  if (/laundry/.test(c)) {
+    return ['["shop"="laundry"]'];
+  }
+  if (/barber/.test(c)) {
+    return ['["shop"="hairdresser"]'];
+  }
+  if (/gym|fitness/.test(c)) {
+    return ['["leisure"="fitness_centre"]'];
+  }
+  if (/dentist|dental/.test(c)) {
+    return ['["amenity"="dentist"]'];
+  }
+  if (/car rental|rent car|rental car/.test(c)) {
+    return ['["amenity"="car_rental"]'];
+  }
+  if (/tattoo/.test(c)) {
+    return ['["shop"="tattoo"]'];
+  }
   const safe = escapeRegex(category.trim());
   return [`["name"~"${safe}",i]`];
 }
@@ -100,6 +118,12 @@ function matchesCategory(element, category) {
   if (/restaurant|cafe|coffee|food/.test(c)) {
     return ["restaurant", "cafe"].includes(tags.amenity);
   }
+  if (/laundry/.test(c)) return tags.shop === "laundry";
+  if (/barber/.test(c)) return tags.shop === "hairdresser";
+  if (/gym|fitness/.test(c)) return tags.leisure === "fitness_centre";
+  if (/dentist|dental/.test(c)) return tags.amenity === "dentist";
+  if (/car rental|rent car|rental car/.test(c)) return tags.amenity === "car_rental";
+  if (/tattoo/.test(c)) return tags.shop === "tattoo";
 
   return name.includes(c.trim());
 }
