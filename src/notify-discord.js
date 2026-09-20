@@ -30,6 +30,22 @@ function opportunityReason(verdict) {
   return "Belum ditemukan website resmi setelah verifikasi — kandidat penawaran website.";
 }
 
+function outreachDraft(lead) {
+  const name = lead.name || "bisnis Anda";
+  const area = lead.area || "Bali";
+  const category = lead.category ? ` (${lead.category})` : "";
+
+  if (lead.verdict === "DEAD_WEBSITE") {
+    return `Halo, saya Arda dari NADMO Studio. Saya menemukan ${name}${category} di ${area}. Saat pengecekan, website bisnisnya terlihat sedang tidak aktif. Kami membantu bisnis lokal memperbaiki atau membangun ulang website yang ringan, mobile-friendly, dan mudah dihubungkan ke WhatsApp. Kalau berkenan, saya bisa kirim contoh konsep singkat tanpa komitmen.`;
+  }
+
+  return `Halo, saya Arda dari NADMO Studio. Saya menemukan ${name}${category} di ${area}. Bisnisnya sudah aktif online, tapi saya belum menemukan website resmi yang aktif. Kami membantu bisnis lokal punya website sederhana, profesional, dan terhubung langsung ke WhatsApp. Kalau berkenan, saya bisa kirim contoh konsep singkat tanpa komitmen.`;
+}
+
+function discordCodeBlock(text) {
+  return `\`\`\`text\n${String(text).replace(/\`\`\`/g, "'''")}\n\`\`\``;
+}
+
 function lineFor(lead, index) {
   const wa = whatsappUrl(lead.phone);
   const contacts = [
@@ -46,7 +62,9 @@ function lineFor(lead, index) {
     `Website status: ${label(lead.verdict)}`,
     ...contacts,
     lead.officialUrl ? `Evidence: ${lead.officialUrl}` : null,
-    `Opportunity: ${opportunityReason(lead.verdict)}`
+    `Opportunity: ${opportunityReason(lead.verdict)}`,
+    "**Suggested outreach (manual review):**",
+    discordCodeBlock(outreachDraft(lead))
   ].filter(Boolean).join("\n");
 }
 
@@ -102,7 +120,7 @@ async function main() {
   }
 
   const header = [
-    "**NADMO Scout — Enriched Sales Leads**",
+    "**NADMO Scout — Enriched Sales Leads + Outreach Draft**",
     `New review-ready leads: ${leads.length}`,
     "Human review required before outreach."
   ].join("\n");
