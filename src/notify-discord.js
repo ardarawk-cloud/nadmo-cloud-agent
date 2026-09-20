@@ -1,5 +1,10 @@
 import "dotenv/config";
-import { closeDb, listReviewLeads, logActivity } from "./db.js";
+import {
+  closeDb,
+  listReviewLeads,
+  logActivity,
+  markDiscordNotified
+} from "./db.js";
 
 function label(verdict) {
   if (verdict === "DEAD_WEBSITE") return "DEAD WEBSITE";
@@ -68,10 +73,16 @@ async function main() {
     return;
   }
 
-  const leads = listReviewLeads();
+  const leads = listReviewLeads({ unsentOnly: true });
+
+  if (leads.length === 0) {
+    console.log("No new review-ready leads to send.");
+    return;
+  }
+
   const header = [
-    "**NADMO Scout — Sales Review Queue**",
-    `Review-ready leads: ${leads.length}`,
+    "**NADMO Scout — New Sales Leads**",
+    `New review-ready leads: ${leads.length}`,
     "Human review required before outreach."
   ].join("\n");
 
@@ -82,12 +93,14 @@ async function main() {
     await sendDiscord(webhookUrl, chunk);
   }
 
+  markDiscordNotified(leads.map((lead) => lead.id));
+
   logActivity("DISCORD_NOTIFY", {
     leadCount: leads.length,
     messageCount: chunks.length
   });
 
-  console.log(`Sent ${leads.length} review-ready leads to Discord in ${chunks.length} message(s).`);
+  console.log(`Sent ${leads.length} NEW review-ready leads to Discord in ${chunks.length} message(s).`);
 }
 
 main()
