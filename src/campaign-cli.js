@@ -21,7 +21,7 @@ async function main() {
   const location = process.argv[2] || "Denpasar, Bali, Indonesia";
   const perCategory = parseLimit(process.argv[3]);
 
-  console.log("NADMO Cloud Agent v0.3 — Local Campaign");
+  console.log("NADMO Cloud Agent v0.4 — Local Campaign");
   console.log(`Location: ${location}`);
   console.log(`Categories: ${DEFAULT_CATEGORIES.join(", ")}`);
   console.log("");
@@ -51,12 +51,19 @@ async function main() {
     }
   }
 
-  const ranked = rankLeads(listLeads())
-    .filter((lead) => lead.recommendation === "STRONG_VERIFY" || lead.recommendation === "VERIFY")
+  const ranked = rankLeads(listLeads());
+  const actionable = ranked
+    .filter((lead) => lead.recommendation === "ACTIONABLE_VERIFY")
     .slice(0, 20);
+  const researchNeeded = ranked.filter((lead) => lead.recommendation === "RESEARCH_NEEDED").length;
+  const hasWebsite = ranked.filter((lead) => lead.recommendation === "HAS_WEBSITE").length;
 
-  console.log("\nTop candidates:");
-  for (const lead of ranked) {
+  console.log("\nActionable verification queue:");
+  if (actionable.length === 0) {
+    console.log("No actionable leads yet. Candidates without public contact were kept as RESEARCH_NEEDED.");
+  }
+
+  for (const lead of actionable) {
     console.log({
       name: lead.name,
       score: lead.score,
@@ -68,7 +75,21 @@ async function main() {
     });
   }
 
-  console.log(`\nTotal ranked candidates shown: ${ranked.length}`);
+  console.log("\nCampaign summary:");
+  console.log({
+    actionableVerify: actionable.length,
+    researchNeeded,
+    hasWebsite,
+    totalDiscoveryRecords: ranked.length
+  });
+
+  logActivity("CAMPAIGN_SUMMARY", {
+    location,
+    actionableVerify: actionable.length,
+    researchNeeded,
+    hasWebsite,
+    totalDiscoveryRecords: ranked.length
+  });
 }
 
 main()
