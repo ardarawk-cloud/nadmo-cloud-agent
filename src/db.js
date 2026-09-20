@@ -149,6 +149,25 @@ export function listReviewLeads({ unsentOnly = false } = {}) {
   `).all();
 }
 
+export function listReviewNotificationStatus() {
+  return db.prepare(`
+    SELECT
+      l.id,
+      l.name,
+      v.verdict,
+      v.official_url AS officialUrl,
+      v.checked_at AS checkedAt,
+      d.sent_at AS sentAt,
+      CASE WHEN d.lead_id IS NULL THEN 0 ELSE 1 END AS sent
+    FROM leads l
+    JOIN lead_verifications v ON v.lead_id = l.id
+    LEFT JOIN discord_notifications d ON d.lead_id = l.id
+    WHERE v.verdict IN ('NO_OFFICIAL_SITE_FOUND', 'SOCIAL_ONLY', 'DEAD_WEBSITE')
+      AND (l.phone IS NOT NULL OR l.email IS NOT NULL OR l.instagram IS NOT NULL)
+    ORDER BY l.updated_at DESC, l.id DESC
+  `).all();
+}
+
 export function markDiscordNotified(leadIds) {
   const stmt = db.prepare(`
     INSERT INTO discord_notifications (lead_id)
