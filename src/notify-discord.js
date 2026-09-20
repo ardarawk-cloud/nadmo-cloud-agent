@@ -12,21 +12,42 @@ function label(verdict) {
   return "NO OFFICIAL SITE FOUND";
 }
 
+function whatsappUrl(phone) {
+  if (!phone) return null;
+  let digits = String(phone).replace(/\D/g, "");
+  if (digits.startsWith("0")) digits = `62${digits.slice(1)}`;
+  if (!digits.startsWith("62") || digits.length < 10) return null;
+  return `https://wa.me/${digits}`;
+}
+
+function opportunityReason(verdict) {
+  if (verdict === "DEAD_WEBSITE") {
+    return "Website terdeteksi tidak aktif — peluang rebuild/recovery.";
+  }
+  if (verdict === "SOCIAL_ONLY") {
+    return "Kehadiran online terdeteksi di sosial, tanpa website resmi aktif yang terverifikasi.";
+  }
+  return "Belum ditemukan website resmi setelah verifikasi — kandidat penawaran website.";
+}
+
 function lineFor(lead, index) {
+  const wa = whatsappUrl(lead.phone);
   const contacts = [
     lead.phone ? `Phone: ${lead.phone}` : null,
+    wa ? `WhatsApp: ${wa}` : null,
     lead.email ? `Email: ${lead.email}` : null,
     lead.instagram ? `Instagram: ${lead.instagram}` : null
-  ].filter(Boolean).join(" | ");
-
-  const evidence = lead.officialUrl ? `\nEvidence: ${lead.officialUrl}` : "";
+  ].filter(Boolean);
 
   return [
     `**${index + 1}. ${lead.name}**`,
-    `Status: ${label(lead.verdict)}`,
-    contacts || "Contact: none",
-    evidence
-  ].join("\n");
+    lead.category ? `Category: ${lead.category}` : null,
+    lead.area ? `Area: ${lead.area}` : null,
+    `Website status: ${label(lead.verdict)}`,
+    ...contacts,
+    lead.officialUrl ? `Evidence: ${lead.officialUrl}` : null,
+    `Opportunity: ${opportunityReason(lead.verdict)}`
+  ].filter(Boolean).join("\n");
 }
 
 function chunkMessages(header, items, max = 1800) {
@@ -81,7 +102,7 @@ async function main() {
   }
 
   const header = [
-    "**NADMO Scout — New Sales Leads**",
+    "**NADMO Scout — Enriched Sales Leads**",
     `New review-ready leads: ${leads.length}`,
     "Human review required before outreach."
   ].join("\n");
