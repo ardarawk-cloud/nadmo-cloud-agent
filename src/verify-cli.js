@@ -1,80 +1,99 @@
-import "dotenv/config";
-import { closeDb, listLeads, logActivity, saveVerification } from "./db.js";
-import { rankLeads } from "./qualify.js";
-import { verifyLeadOnWeb } from "./verify-web.js";
+const BLOCKED_HOSTS = [
+  "facebook.com",
+  "instagram.com",
+  "linkedin.com",
+  "youtube.com",
+  "tiktok.com",
+  "tripadvisor.com",
+  "traveloka.com",
+  "booking.com",
+  "agoda.com",
+  "google.com",
+  "maps.google.com",
+  "openstreetmap.org",
+  "x.com"
+];
 
-function parseLimit(raw) {
-  const n = Number.parseInt(raw ?? "", 10);
-  if (!Number.isFinite(n)) return 10;
-  return Math.max(1, Math.min(n, 25));
+function hostnameOf(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return "";
+  }
 }
 
-async function main() {
-  const limit = parseLimit(process.argv[2]);
-  const apiKey = process.env.SERPER_API_KEY;
-
-  if (!apiKey) {
-    console.error("SERPER_API_KEY is missing in .env");
-    process.exitCode = 2;
-    return;
-  }
-
-  const actionable = rankLeads(listLeads())
-    .filter((lead) => lead.recommendation === "ACTIONABLE_VERIFY")
-    .slice(0, limit);
-
-  console.log("NADMO Cloud Agent v0.5 — Web Verification");
-  console.log(`Verifying ${actionable.length} actionable candidates...\n`);
-
-  let hasWebsite = 0;
-  let potentialLead = 0;
-
-  for (const lead of actionable) {
-    try {
-      const result = await verifyLeadOnWeb(lead, apiKey);
-      saveVerification(result);
-
-      if (result.verdict === "HAS_WEBSITE") hasWebsite += 1;
-      if (result.verdict === "POTENTIAL_LEAD") potentialLead += 1;
-
-      console.log({
-        name: lead.name,
-        verdict: result.verdict,
-        officialUrl: result.officialUrl,
-        phone: lead.phone,
-        email: lead.email,
-        instagram: lead.instagram
-      });
-
-      logActivity("WEB_VERIFY", {
-        leadId: lead.id,
-        name: lead.name,
-        verdict: result.verdict,
-        officialUrl: result.officialUrl
-      });
-    } catch (error) {
-      console.error(`Verification failed for ${lead.name}: ${error.message}`);
-      logActivity("WEB_VERIFY_ERROR", {
-        leadId: lead.id,
-        name: lead.name,
-        error: error.message
-      });
-    }
-  }
-
-  console.log("\nVerification summary:");
-  console.log({
-    checked: actionable.length,
-    hasWebsite,
-    potentialLead
-  });
+function blocked(url) {
+  const host = hostnameOf(url);
+  return BLOCKED_HOSTS.some((domain) => host === domain || host.endsWith("." + domain));
 }
 
-main()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(() => {
-    closeDb();
+function tokens(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length >= 3);
+}
+
+function relevanceScore(name, result) {
+  const haystack = `${result.title ?? ""} ${result.snippet ?? ""} ${result.link ?? ""}`.toLowerCase();
+  const ts = tokens(name);
+  if (ts.length === 0) return 0;
+  const matched = ts.filter((t) => haystack.includes(t)).length;
+  return matched / ts.length;
+}
+
+export async function verifyLeadOnWeb(lead, apiKey) {
+  if (!apiKey) throw new Error("SERPER_API_KEY is missing.");
+
+  const q = `"${lead.name}" Bali official website`;
+  const response = await fetch("https://google.serper.dev/search", {
+    method: "POST",
+    headers: {
+      "X-API-KEY": apiKey,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      q,
+      gl: "id",
+      hl: "en",
+      num: 10
+    })
   });
+
+  if (!response.ok) {
+    throw new Error(`Serper HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  const organic = Array.isArray(data.organic) ? data.organic : [];
+
+  const candidates = organic
+    .filter((result) => result?.link && !blocked(result.link))
+    .map((result) => ({
+      ...result,
+      relevance: relevanceScore(lead.name, result)
+    }))
+    .filter((result) => result.relevance >= 0.6)
+    .sort((a, b) => b.relevance - a.relevance);
+
+  const best = candidates[0] ?? null;
+
+  if (best) {
+    return {
+      leadId: lead.id,
+      verdict: "HAS_WEBSITE",
+      officialUrl: best.link,
+      evidenceTitle: best.title ?? null,
+      evidenceSnippet: best.snippet ?? null
+    };
+  }
+
+  return {
+    leadId: lead.id,
+    verdict: "POTENTIAL_LEAD",
+    officialUrl: null,
+    evidenceTitle: null,
+    evidenceSnippet: null
+  };
+}
