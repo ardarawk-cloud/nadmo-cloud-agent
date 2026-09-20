@@ -53,6 +53,10 @@ function normalize(value) {
     .trim();
 }
 
+function digits(value) {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
 function distinctiveTokens(name) {
   return normalize(name)
     .split(/\s+/)
@@ -60,14 +64,15 @@ function distinctiveTokens(name) {
 }
 
 function domainMatchesBrand(name, link) {
-  const host = hostnameOf(link).replace(/\.(com|co\.id|id|net|org|co|biz|info)$/i, "");
+  const host = hostnameOf(link)
+    .replace(/\.(com|co\.id|id|net|org|co|biz|info|asia)$/i, "");
   const compactHost = host.replace(/[^a-z0-9]/g, "");
   const tokens = distinctiveTokens(name);
 
   if (tokens.length === 0) return false;
 
   const compactBrand = tokens.join("");
-  if (compactBrand.length >= 4 && compactHost.includes(compactBrand)) return true;
+  if (compactBrand.length >= 3 && compactHost.includes(compactBrand)) return true;
 
   const matched = tokens.filter((token) => compactHost.includes(token)).length;
   if (tokens.length === 1) return matched === 1;
@@ -79,13 +84,30 @@ function titleMatchesBrand(name, title) {
   const tokens = distinctiveTokens(name);
   if (tokens.length === 0) return false;
   const matched = tokens.filter((token) => titleNorm.includes(token)).length;
-  return tokens.length === 1 ? matched === 1 : matched / tokens.length >= 0.75;
+  return tokens.length === 1 ? matched === 1 : matched / tokens.length >= 0.5;
 }
 
-export async function verifyLeadOnWeb(lead, apiKey) {
-  if (!apiKey) throw new Error("SERPER_API_KEY is missing.");
+function phoneMatches(lead, result) {
+  const phone = digits(lead.phone);
+  if (phone.length < 7) return false;
+  const haystack = digits(`${result.title ?? ""} ${result.snippet ?? ""}`);
+  const tail = phone.slice(-8);
+  return tail.length >= 7 && haystack.includes(tail);
+}
 
-  const q = `"${lead.name}" Bali official website`;
+function resultScore(lead, result) {
+  let score = 0;
+  if (domainMatchesBrand(lead.name, result.link)) score += 5;
+  if (titleMatchesBrand(lead.name, result.title)) score += 3;
+  if (phoneMatches(lead, result)) score += 6;
+
+  const haystack = normalize(`${result.title ?? ""} ${result.snippet ?? ""}`);
+  if (haystack.includes("bali") || haystack.includes("denpasar")) score += 1;
+
+  return score;
+}
+
+async function serperSearch(apiKey, q) {
   const response = await fetch("https://google.serper.dev/search", {
     method: "POST",
     headers: {
@@ -104,17 +126,56 @@ export async function verifyLeadOnWeb(lead, apiKey) {
     throw new Error(`Serper HTTP ${response.status}`);
   }
 
-  const data = await response.json();
-  const organic = Array.isArray(data.organic) ? data.organic : [];
+  return response.json();
+}
 
-  const strongCandidates = organic
+export async function verifyLeadOnWeb(lead, apiKey) {
+  if (!apiKey) throw new Error("SERPER_API_KEY is missing.");
+
+  const queries = [
+    `"${lead.name}" Bali`,
+    `${lead.name} Bali website`
+  ];
+
+  if (lead.phone) {
+    queries.push(`"${lead.phone}"`);
+  }
+
+  const results = [];
+
+  for (const q of queries) {
+    const data = await serperSearch(apiKey, q);
+
+    if (data?.knowledgeGraph?.website) {
+      results.push({
+        link: data.knowledgeGraph.website,
+        title: data.knowledgeGraph.title ?? lead.name,
+        snippet: data.knowledgeGraph.description ?? ""
+      });
+    }
+
+    if (Array.isArray(data.organic)) {
+      results.push(...data.organic);
+    }
+  }
+
+  const seen = new Set();
+  const candidates = results
     .filter((result) => result?.link && !blocked(result.link))
-    .filter((result) =>
-      domainMatchesBrand(lead.name, result.link) &&
-      titleMatchesBrand(lead.name, result.title)
-    );
+    .filter((result) => {
+      const key = result.link;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((result) => ({
+      ...result,
+      score: resultScore(lead, result)
+    }))
+    .filter((result) => result.score >= 5)
+    .sort((a, b) => b.score - a.score);
 
-  const best = strongCandidates[0] ?? null;
+  const best = candidates[0] ?? null;
 
   if (best) {
     return {
