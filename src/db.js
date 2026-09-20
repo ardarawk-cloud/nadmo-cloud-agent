@@ -98,6 +98,31 @@ export function saveVerification(verification) {
   saveVerificationStmt.run(verification);
 }
 
+export function listReviewLeads() {
+  return db.prepare(`
+    SELECT
+      l.id,
+      l.name,
+      l.phone,
+      l.email,
+      l.instagram,
+      l.source_url AS sourceUrl,
+      l.status,
+      v.verdict,
+      v.official_url AS officialUrl,
+      v.checked_at AS checkedAt
+    FROM leads l
+    JOIN lead_verifications v ON v.lead_id = l.id
+    WHERE v.verdict = 'NO_OFFICIAL_SITE_FOUND'
+      AND (l.phone IS NOT NULL OR l.email IS NOT NULL OR l.instagram IS NOT NULL)
+    ORDER BY
+      CASE WHEN l.phone IS NOT NULL THEN 1 ELSE 0 END DESC,
+      CASE WHEN l.email IS NOT NULL THEN 1 ELSE 0 END DESC,
+      CASE WHEN l.instagram IS NOT NULL THEN 1 ELSE 0 END DESC,
+      l.updated_at DESC
+  `).all();
+}
+
 export function closeDb() {
   db.close();
 }
