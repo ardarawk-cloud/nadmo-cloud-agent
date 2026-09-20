@@ -47,7 +47,7 @@ async function main() {
     return;
   }
 
-  console.log("NADMO Cloud Agent v0.11.1 — Bali Lead Hunt");
+  console.log("NADMO Cloud Agent v0.13.0 — Bali Lead Hunt + Enrichment");
   console.log(`Areas: ${AREAS.join(" | ")}`);
   console.log(`Categories: ${CATEGORIES.join(", ")}`);
   console.log(`Discovery limit/category: ${perCategory}`);
@@ -124,6 +124,8 @@ async function main() {
       phone: lead.phone,
       email: lead.email,
       instagram: lead.instagram,
+      category: lead.category,
+      area: lead.area,
       evidenceUrl: lead.officialUrl,
       sourceUrl: lead.sourceUrl
     });
