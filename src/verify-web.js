@@ -109,6 +109,40 @@ function textMatchesBrand(name, text) {
   return tokens.length === 1 ? matched === 1 : matched / tokens.length >= 0.5;
 }
 
+function brandAcronyms(name) {
+  const words = normalize(name)
+    .split(/\s+/)
+    .filter((word) => word.length >= 2 && !["the", "and", "of"].includes(word));
+
+  const acronyms = new Set();
+  if (words.length >= 2) acronyms.add(words.map((word) => word[0]).join(""));
+  const distinctive = distinctiveTokens(name);
+  if (distinctive.length >= 2) acronyms.add(distinctive.map((word) => word[0]).join(""));
+  return [...acronyms].filter((value) => value.length >= 3);
+}
+
+function socialPathMatchesBrand(name, link) {
+  try {
+    const url = new URL(link);
+    const path = url.pathname.toLowerCase();
+    const compactPath = path.replace(/[^a-z0-9]/g, "");
+    const tokens = distinctiveTokens(name);
+
+    if (tokens.length > 0) {
+      const compactBrand = tokens.join("");
+      if (compactBrand.length >= 3 && compactPath.includes(compactBrand)) return true;
+
+      const matched = tokens.filter((token) => compactPath.includes(token)).length;
+      if (tokens.length === 1 && matched === 1) return true;
+      if (tokens.length > 1 && matched / tokens.length >= 0.5) return true;
+    }
+
+    return brandAcronyms(name).some((acronym) => compactPath.includes(acronym));
+  } catch {
+    return false;
+  }
+}
+
 function phoneMatches(lead, result) {
   const phone = digits(lead.phone);
   if (phone.length < 7) return false;
@@ -253,8 +287,24 @@ export async function verifyLeadOnWeb(lead, apiKey) {
 
   const social = uniqueResults
     .filter((result) => isSocial(result.link))
-    .map((result) => ({ ...result, score: resultScore(lead, result) }))
-    .filter((result) => result.score >= 3)
+    .map((result) => ({
+      ...result,
+      score: resultScore(lead, result),
+      brandTitleMatch: textMatchesBrand(lead.name, result.title),
+      matchedPhone: phoneMatches(lead, result),
+      socialPathMatch: socialPathMatchesBrand(lead.name, result.link)
+    }))
+    .filter((result) =>
+      result.matchedPhone ||
+      (
+        result.brandTitleMatch &&
+        result.socialPathMatch
+      ) ||
+      (
+        result.sourceType === "knowledge_graph" &&
+        result.brandTitleMatch
+      )
+    )
     .sort((a, b) => b.score - a.score)[0] ?? null;
 
   const websiteCandidates = uniqueResults
