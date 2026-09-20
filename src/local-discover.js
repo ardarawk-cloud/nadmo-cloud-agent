@@ -1,4 +1,20 @@
-const USER_AGENT = "NADMO-Cloud-Agent/0.2 (local-business discovery)";
+const USER_AGENT = "NADMO-Cloud-Agent/0.11.1 (local-business discovery)";
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter"
+];
+const RETRYABLE_HTTP = new Set([429, 500, 502, 503, 504]);
+let lastOverpassRequestAt = 0;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function paceOverpass(minGapMs = 2500) {
+  const elapsed = Date.now() - lastOverpassRequestAt;
+  if (elapsed < minGapMs) await sleep(minGapMs - elapsed);
+  lastOverpassRequestAt = Date.now();
+}
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -84,18 +100,53 @@ async function overpass(bbox, filters) {
     `relation${filter}(${box});`
   ]).join("\n");
 
-  const query = `[out:json][timeout:25];(\n${clauses}\n);out center tags;`;
-  const response = await fetch("https://overpass-api.de/api/interpreter", {
-    method: "POST",
-    headers: {
-      "User-Agent": USER_AGENT,
-      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
-    },
-    body: new URLSearchParams({ data: query })
-  });
-  if (!response.ok) throw new Error(`Overpass HTTP ${response.status}`);
-  const data = await response.json();
-  return Array.isArray(data.elements) ? data.elements : [];
+  const query = `[out:json][timeout:35];(\n${clauses}\n);out center tags 200;`;
+  let lastError = null;
+
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      await paceOverpass();
+
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 45000);
+
+        let response;
+        try {
+          response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "User-Agent": USER_AGENT,
+              "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+            },
+            body: new URLSearchParams({ data: query }),
+            signal: controller.signal
+          });
+        } finally {
+          clearTimeout(timer);
+        }
+
+        if (response.ok) {
+          const data = await response.json();
+          return Array.isArray(data.elements) ? data.elements : [];
+        }
+
+        lastError = new Error(`Overpass HTTP ${response.status}`);
+
+        if (!RETRYABLE_HTTP.has(response.status)) {
+          throw lastError;
+        }
+      } catch (error) {
+        lastError = error;
+      }
+
+      if (attempt < 3) {
+        await sleep(3000 * attempt);
+      }
+    }
+  }
+
+  throw lastError ?? new Error("Overpass request failed");
 }
 
 function matchesCategory(element, category) {
