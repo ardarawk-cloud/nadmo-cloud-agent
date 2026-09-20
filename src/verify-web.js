@@ -45,7 +45,8 @@ const SOCIAL_HOSTS = [
 const GENERIC_TOKENS = new Set([
   "bali", "denpasar", "clinic", "spa", "salon", "studio", "restaurant",
   "cafe", "coffee", "hotel", "villa", "guest", "house", "makeup", "artist",
-  "beauty", "official", "website", "indonesia"
+  "beauty", "official", "website", "indonesia",
+  "the", "road", "street", "jalan", "jl"
 ]);
 
 function hostnameOf(url) {
@@ -119,6 +120,16 @@ function brandAcronyms(name) {
   const distinctive = distinctiveTokens(name);
   if (distinctive.length >= 2) acronyms.add(distinctive.map((word) => word[0]).join(""));
   return [...acronyms].filter((value) => value.length >= 3);
+}
+
+function isSocialPostUrl(link) {
+  try {
+    const url = new URL(link);
+    const path = url.pathname.toLowerCase();
+    return /\/(p|posts|photos|reel|reels|videos|watch)\//.test(path);
+  } catch {
+    return true;
+  }
 }
 
 function socialPathMatchesBrand(name, link) {
@@ -295,10 +306,15 @@ export async function verifyLeadOnWeb(lead, apiKey) {
       socialPathMatch: socialPathMatchesBrand(lead.name, result.link)
     }))
     .filter((result) =>
-      result.matchedPhone ||
       (
+        !isSocialPostUrl(result.link) &&
         result.brandTitleMatch &&
         result.socialPathMatch
+      ) ||
+      (
+        !isSocialPostUrl(result.link) &&
+        result.matchedPhone &&
+        result.brandTitleMatch
       ) ||
       (
         result.sourceType === "knowledge_graph" &&
