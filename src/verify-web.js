@@ -20,7 +20,17 @@ const DIRECTORY_HOSTS = [
   "kompas.com",
   "google.com",
   "maps.google.com",
-  "openstreetmap.org"
+  "openstreetmap.org",
+  "waze.com",
+  "wanderlog.com",
+  "mapcarta.com",
+  "restaurantguru.com",
+  "restaurantguru.co.id",
+  "top-rated.online",
+  "zaubee.com",
+  "nicelocal.id",
+  "cybo.com",
+  "business.site"
 ];
 
 const SOCIAL_HOSTS = [
@@ -220,11 +230,17 @@ export async function verifyLeadOnWeb(lead, apiKey) {
       results.push({
         link: data.knowledgeGraph.website,
         title: data.knowledgeGraph.title ?? lead.name,
-        snippet: data.knowledgeGraph.description ?? ""
+        snippet: data.knowledgeGraph.description ?? "",
+        sourceType: "knowledge_graph"
       });
     }
 
-    if (Array.isArray(data.organic)) results.push(...data.organic);
+    if (Array.isArray(data.organic)) {
+      results.push(...data.organic.map((result) => ({
+        ...result,
+        sourceType: "organic"
+      })));
+    }
   }
 
   const seen = new Set();
@@ -248,12 +264,22 @@ export async function verifyLeadOnWeb(lead, apiKey) {
       score: resultScore(lead, result),
       brandDomainMatch: domainMatchesBrand(lead.name, result.link),
       brandTitleMatch: textMatchesBrand(lead.name, result.title),
-      matchedPhone: phoneMatches(lead, result)
+      matchedPhone: phoneMatches(lead, result),
+      officialSignal:
+        domainMatchesBrand(lead.name, result.link) ||
+        (
+          result.sourceType === "knowledge_graph" &&
+          textMatchesBrand(lead.name, result.title)
+        )
     }))
     .filter((result) => result.score >= 5)
     .sort((a, b) => b.score - a.score);
 
-  for (const candidate of websiteCandidates.slice(0, 3)) {
+  const officialCandidates = websiteCandidates.filter(
+    (candidate) => candidate.officialSignal
+  );
+
+  for (const candidate of officialCandidates.slice(0, 3)) {
     const live = await websiteReachable(candidate.link);
 
     if (live.ok) {
@@ -267,10 +293,13 @@ export async function verifyLeadOnWeb(lead, apiKey) {
     }
   }
 
-  const deadSiteCandidate = websiteCandidates.find(
+  const deadSiteCandidate = officialCandidates.find(
     (candidate) =>
       candidate.brandDomainMatch ||
-      (candidate.matchedPhone && candidate.brandTitleMatch)
+      (
+        candidate.sourceType === "knowledge_graph" &&
+        candidate.brandTitleMatch
+      )
   );
 
   if (deadSiteCandidate) {
