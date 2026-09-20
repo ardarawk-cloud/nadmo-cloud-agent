@@ -1,6 +1,6 @@
 {
   "name": "nadmo-cloud-agent",
-  "version": "0.11.2",
+  "version": "0.11.3",
   "private": true,
   "type": "module",
   "description": "NADMO Cloud Agent — safe browser-worker foundation for NADMO Scout",
@@ -19,7 +19,8 @@
     "hunt": "node src/hunt-cli.js",
     "notify": "node src/notify-discord.js",
     "cycle": "npm run hunt && npm run notify",
-    "notify:status": "node src/notify-status.js"
+    "notify:status": "node src/notify-status.js",
+    "notify:retry": "node src/notify-retry.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1",
