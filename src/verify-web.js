@@ -30,7 +30,13 @@ const DIRECTORY_HOSTS = [
   "zaubee.com",
   "nicelocal.id",
   "cybo.com",
-  "business.site"
+  "business.site",
+  "bali.com",
+  "bali.live",
+  "kuta.co.id",
+  "latihanfisik.com",
+  "rentberry.com",
+  "nomadfit.app"
 ];
 
 const SOCIAL_HOSTS = [
@@ -194,6 +200,57 @@ async function serperSearch(apiKey, q) {
   return response.json();
 }
 
+async function extractExternalCandidates(result, lead) {
+  if (!result?.link) return [];
+  if (!textMatchesBrand(lead.name, result.title) || !phoneMatches(lead, result)) {
+    return [];
+  }
+
+  let html = "";
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(result.link, {
+        redirect: "follow",
+        signal: controller.signal,
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130 Safari/537.36"
+        }
+      });
+      if (response.ok) html = await response.text();
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch {
+    return [];
+  }
+
+  const found = new Set();
+
+  for (const match of html.matchAll(/href=["'](https?:\/\/[^"'#\s]+)["']/gi)) {
+    try {
+      const url = new URL(match[1]);
+      if (isDirectory(url.href) || isSocial(url.href)) continue;
+      found.add(url.origin);
+    } catch {}
+  }
+
+  for (const match of html.matchAll(/[A-Z0-9._%+-]+@([A-Z0-9.-]+\.[A-Z]{2,})/gi)) {
+    const host = match[1].toLowerCase();
+    if (hostMatches(host, ["gmail.com","yahoo.com","hotmail.com","outlook.com"])) continue;
+    found.add(`https://${host}`);
+  }
+
+  return [...found].map((link) => ({
+    link,
+    title: result.title,
+    snippet: result.snippet,
+    sourceType: "directory_evidence"
+  }));
+}
+
 async function websiteReachable(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
@@ -288,6 +345,15 @@ export async function verifyLeadOnWeb(lead, apiKey) {
     }
   }
 
+  const evidenceResults = results.filter(
+    (result) => isDirectory(result.link) && textMatchesBrand(lead.name, result.title) && phoneMatches(lead, result)
+  );
+
+  for (const evidence of evidenceResults.slice(0, 3)) {
+    const extracted = await extractExternalCandidates(evidence, lead);
+    results.push(...extracted);
+  }
+
   const seen = new Set();
   const uniqueResults = results.filter((result) => {
     if (!result?.link) return false;
@@ -333,6 +399,10 @@ export async function verifyLeadOnWeb(lead, apiKey) {
       matchedPhone: phoneMatches(lead, result),
       officialSignal:
         domainMatchesBrand(lead.name, result.link) ||
+        (
+          result.sourceType === "directory_evidence" &&
+          textMatchesBrand(lead.name, result.title)
+        ) ||
         (
           result.sourceType === "knowledge_graph" &&
           textMatchesBrand(lead.name, result.title)
