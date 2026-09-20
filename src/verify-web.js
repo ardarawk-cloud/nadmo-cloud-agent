@@ -1,9 +1,4 @@
-const BLOCKED_HOSTS = [
-  "facebook.com",
-  "instagram.com",
-  "linkedin.com",
-  "youtube.com",
-  "tiktok.com",
+const DIRECTORY_HOSTS = [
   "tripadvisor.com",
   "trip.com",
   "traveloka.com",
@@ -23,7 +18,15 @@ const BLOCKED_HOSTS = [
   "kompas.com",
   "google.com",
   "maps.google.com",
-  "openstreetmap.org",
+  "openstreetmap.org"
+];
+
+const SOCIAL_HOSTS = [
+  "facebook.com",
+  "instagram.com",
+  "linkedin.com",
+  "youtube.com",
+  "tiktok.com",
   "x.com"
 ];
 
@@ -41,9 +44,16 @@ function hostnameOf(url) {
   }
 }
 
-function blocked(url) {
-  const host = hostnameOf(url);
-  return BLOCKED_HOSTS.some((domain) => host === domain || host.endsWith("." + domain));
+function hostMatches(host, domains) {
+  return domains.some((domain) => host === domain || host.endsWith("." + domain));
+}
+
+function isDirectory(url) {
+  return hostMatches(hostnameOf(url), DIRECTORY_HOSTS);
+}
+
+function isSocial(url) {
+  return hostMatches(hostnameOf(url), SOCIAL_HOSTS);
 }
 
 function normalize(value) {
@@ -79,11 +89,11 @@ function domainMatchesBrand(name, link) {
   return matched / tokens.length >= 0.5;
 }
 
-function titleMatchesBrand(name, title) {
-  const titleNorm = normalize(title);
+function textMatchesBrand(name, text) {
+  const textNorm = normalize(text);
   const tokens = distinctiveTokens(name);
   if (tokens.length === 0) return false;
-  const matched = tokens.filter((token) => titleNorm.includes(token)).length;
+  const matched = tokens.filter((token) => textNorm.includes(token)).length;
   return tokens.length === 1 ? matched === 1 : matched / tokens.length >= 0.5;
 }
 
@@ -98,7 +108,8 @@ function phoneMatches(lead, result) {
 function resultScore(lead, result) {
   let score = 0;
   if (domainMatchesBrand(lead.name, result.link)) score += 5;
-  if (titleMatchesBrand(lead.name, result.title)) score += 3;
+  if (textMatchesBrand(lead.name, result.title)) score += 3;
+  if (textMatchesBrand(lead.name, result.snippet)) score += 2;
   if (phoneMatches(lead, result)) score += 6;
 
   const haystack = normalize(`${result.title ?? ""} ${result.snippet ?? ""}`);
@@ -122,11 +133,35 @@ async function serperSearch(apiKey, q) {
     })
   });
 
-  if (!response.ok) {
-    throw new Error(`Serper HTTP ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`Serper HTTP ${response.status}`);
   return response.json();
+}
+
+async function websiteReachable(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      signal: controller.signal,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130 Safari/537.36"
+      }
+    });
+
+    return {
+      ok: response.status >= 200 && response.status < 400,
+      finalUrl: response.url || url,
+      status: response.status
+    };
+  } catch {
+    return { ok: false, finalUrl: url, status: null };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function verifyLeadOnWeb(lead, apiKey) {
@@ -134,12 +169,11 @@ export async function verifyLeadOnWeb(lead, apiKey) {
 
   const queries = [
     `"${lead.name}" Bali`,
-    `${lead.name} Bali website`
+    `${lead.name} Bali website`,
+    `${lead.name} Bali Instagram`
   ];
 
-  if (lead.phone) {
-    queries.push(`"${lead.phone}"`);
-  }
+  if (lead.phone) queries.push(`"${lead.phone}"`);
 
   const results = [];
 
@@ -154,36 +188,61 @@ export async function verifyLeadOnWeb(lead, apiKey) {
       });
     }
 
-    if (Array.isArray(data.organic)) {
-      results.push(...data.organic);
-    }
+    if (Array.isArray(data.organic)) results.push(...data.organic);
   }
 
   const seen = new Set();
-  const candidates = results
-    .filter((result) => result?.link && !blocked(result.link))
-    .filter((result) => {
-      const key = result.link;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .map((result) => ({
-      ...result,
-      score: resultScore(lead, result)
-    }))
+  const uniqueResults = results.filter((result) => {
+    if (!result?.link) return false;
+    if (seen.has(result.link)) return false;
+    seen.add(result.link);
+    return true;
+  });
+
+  const social = uniqueResults
+    .filter((result) => isSocial(result.link))
+    .map((result) => ({ ...result, score: resultScore(lead, result) }))
+    .filter((result) => result.score >= 3)
+    .sort((a, b) => b.score - a.score)[0] ?? null;
+
+  const websiteCandidates = uniqueResults
+    .filter((result) => !isSocial(result.link) && !isDirectory(result.link))
+    .map((result) => ({ ...result, score: resultScore(lead, result) }))
     .filter((result) => result.score >= 5)
     .sort((a, b) => b.score - a.score);
 
-  const best = candidates[0] ?? null;
+  for (const candidate of websiteCandidates.slice(0, 3)) {
+    const live = await websiteReachable(candidate.link);
 
-  if (best) {
+    if (live.ok) {
+      return {
+        leadId: lead.id,
+        verdict: "HAS_WEBSITE",
+        officialUrl: live.finalUrl,
+        evidenceTitle: candidate.title ?? null,
+        evidenceSnippet: candidate.snippet ?? null
+      };
+    }
+  }
+
+  if (websiteCandidates.length > 0) {
+    const candidate = websiteCandidates[0];
     return {
       leadId: lead.id,
-      verdict: "HAS_WEBSITE",
-      officialUrl: best.link,
-      evidenceTitle: best.title ?? null,
-      evidenceSnippet: best.snippet ?? null
+      verdict: "DEAD_WEBSITE",
+      officialUrl: candidate.link,
+      evidenceTitle: candidate.title ?? null,
+      evidenceSnippet: candidate.snippet ?? null
+    };
+  }
+
+  if (social) {
+    return {
+      leadId: lead.id,
+      verdict: "SOCIAL_ONLY",
+      officialUrl: social.link,
+      evidenceTitle: social.title ?? null,
+      evidenceSnippet: social.snippet ?? null
     };
   }
 
