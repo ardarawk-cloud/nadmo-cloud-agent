@@ -113,7 +113,7 @@ export function listReviewLeads() {
       v.checked_at AS checkedAt
     FROM leads l
     JOIN lead_verifications v ON v.lead_id = l.id
-    WHERE v.verdict = 'NO_OFFICIAL_SITE_FOUND'
+    WHERE v.verdict IN ('NO_OFFICIAL_SITE_FOUND', 'SOCIAL_ONLY', 'DEAD_WEBSITE')
       AND (l.phone IS NOT NULL OR l.email IS NOT NULL OR l.instagram IS NOT NULL)
     ORDER BY
       CASE WHEN l.phone IS NOT NULL THEN 1 ELSE 0 END DESC,
