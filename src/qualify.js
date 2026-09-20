@@ -7,13 +7,19 @@ function hasWebsite(lead) {
   return lead.status === "DISCOVERED_HAS_WEBSITE";
 }
 
+function hasAnyContact(lead) {
+  return Boolean(lead.phone || lead.email || lead.instagram);
+}
+
 export function qualifyLead(lead) {
   if (!isDiscoveryLead(lead)) return null;
 
   let score = 0;
   const reasons = [];
+  const websiteListed = hasWebsite(lead);
+  const contactAvailable = hasAnyContact(lead);
 
-  if (!hasWebsite(lead)) {
+  if (!websiteListed) {
     score += 50;
     reasons.push("no website listed in discovery source");
   } else {
@@ -36,13 +42,20 @@ export function qualifyLead(lead) {
   }
 
   let recommendation = "LOW_PRIORITY";
-  if (score >= 70) recommendation = "STRONG_VERIFY";
-  else if (score >= 50) recommendation = "VERIFY";
+
+  if (!websiteListed && contactAvailable) {
+    recommendation = "ACTIONABLE_VERIFY";
+  } else if (!websiteListed && !contactAvailable) {
+    recommendation = "RESEARCH_NEEDED";
+  } else if (websiteListed) {
+    recommendation = "HAS_WEBSITE";
+  }
 
   return {
     ...lead,
     score,
     recommendation,
+    actionable: recommendation === "ACTIONABLE_VERIFY",
     reasons
   };
 }
@@ -51,5 +64,8 @@ export function rankLeads(leads) {
   return leads
     .map(qualifyLead)
     .filter(Boolean)
-    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+    .sort((a, b) => {
+      if (a.actionable !== b.actionable) return a.actionable ? -1 : 1;
+      return b.score - a.score || a.name.localeCompare(b.name);
+    });
 }
