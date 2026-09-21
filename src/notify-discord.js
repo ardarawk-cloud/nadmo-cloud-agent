@@ -12,12 +12,14 @@ function label(verdict) {
   return "NO OFFICIAL SITE FOUND";
 }
 
-function whatsappUrl(phone) {
+function whatsappUrl(phone, text = null) {
   if (!phone) return null;
   let digits = String(phone).replace(/\D/g, "");
   if (digits.startsWith("0")) digits = `62${digits.slice(1)}`;
   if (!digits.startsWith("62") || digits.length < 10) return null;
-  return `https://wa.me/${digits}`;
+
+  const base = `https://wa.me/${digits}`;
+  return text ? `${base}?text=${encodeURIComponent(text)}` : base;
 }
 
 function opportunityReason(verdict) {
@@ -47,7 +49,9 @@ function discordCodeBlock(text) {
 }
 
 function lineFor(lead, index) {
+  const draft = outreachDraft(lead);
   const wa = whatsappUrl(lead.phone);
+  const waWithDraft = whatsappUrl(lead.phone, draft);
   const contacts = [
     lead.phone ? `Phone: ${lead.phone}` : null,
     wa ? `WhatsApp: ${wa}` : null,
@@ -64,7 +68,8 @@ function lineFor(lead, index) {
     lead.officialUrl ? `Evidence: ${lead.officialUrl}` : null,
     `Opportunity: ${opportunityReason(lead.verdict)}`,
     "**Suggested outreach (manual review):**",
-    discordCodeBlock(outreachDraft(lead))
+    discordCodeBlock(draft),
+    waWithDraft ? `**Action:** [✅ Approve & WhatsApp](${waWithDraft})` : null
   ].filter(Boolean).join("\n");
 }
 
@@ -122,7 +127,7 @@ async function main() {
   const header = [
     "**NADMO Scout — Enriched Sales Leads + Outreach Draft**",
     `New review-ready leads: ${leads.length}`,
-    "Human review required before outreach."
+    "Review the draft, then tap **✅ Approve & WhatsApp** to open WhatsApp with the message prefilled."
   ].join("\n");
 
   const items = leads.map(lineFor);
@@ -136,7 +141,8 @@ async function main() {
 
   logActivity("DISCORD_NOTIFY", {
     leadCount: leads.length,
-    messageCount: chunks.length
+    messageCount: chunks.length,
+    whatsappPrefillEnabled: true
   });
 
   console.log(`Sent ${leads.length} NEW review-ready leads to Discord in ${chunks.length} message(s).`);
