@@ -40,6 +40,14 @@ db.exec(`
     lead_id INTEGER PRIMARY KEY,
     sent_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS lead_outreach_status (
+    lead_id INTEGER PRIMARY KEY,
+    status TEXT NOT NULL DEFAULT 'REVIEW_PENDING',
+    approved_at TEXT,
+    contacted_at TEXT,
+    synced_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 function ensureColumn(table, column, definition) {
@@ -85,6 +93,18 @@ const saveVerificationStmt = db.prepare(`
     checked_at = CURRENT_TIMESTAMP
 `);
 
+const upsertOutreachStatusStmt = db.prepare(`
+  INSERT INTO lead_outreach_status (
+    lead_id, status, approved_at, contacted_at, synced_at
+  )
+  VALUES (@leadId, @status, @approvedAt, @contactedAt, CURRENT_TIMESTAMP)
+  ON CONFLICT(lead_id) DO UPDATE SET
+    status = excluded.status,
+    approved_at = COALESCE(excluded.approved_at, lead_outreach_status.approved_at),
+    contacted_at = COALESCE(excluded.contacted_at, lead_outreach_status.contacted_at),
+    synced_at = CURRENT_TIMESTAMP
+`);
+
 const listLeadsStmt = db.prepare(`
   SELECT
     id,
@@ -119,6 +139,20 @@ export function saveVerification(verification) {
   saveVerificationStmt.run(verification);
 }
 
+export function upsertLeadOutreachStatus({
+  leadId,
+  status,
+  approvedAt = null,
+  contactedAt = null
+}) {
+  upsertOutreachStatusStmt.run({
+    leadId,
+    status,
+    approvedAt,
+    contactedAt
+  });
+}
+
 export function listReviewLeads({ unsentOnly = false } = {}) {
   const unsentClause = unsentOnly
     ? "AND NOT EXISTS (SELECT 1 FROM discord_notifications d WHERE d.lead_id = l.id)"
@@ -137,9 +171,11 @@ export function listReviewLeads({ unsentOnly = false } = {}) {
       l.status,
       v.verdict,
       v.official_url AS officialUrl,
-      v.checked_at AS checkedAt
+      v.checked_at AS checkedAt,
+      COALESCE(o.status, 'REVIEW_PENDING') AS outreachStatus
     FROM leads l
     JOIN lead_verifications v ON v.lead_id = l.id
+    LEFT JOIN lead_outreach_status o ON o.lead_id = l.id
     WHERE v.verdict IN ('NO_OFFICIAL_SITE_FOUND', 'SOCIAL_ONLY', 'DEAD_WEBSITE')
       AND (l.phone IS NOT NULL OR l.email IS NOT NULL OR l.instagram IS NOT NULL)
       ${unsentClause}
@@ -160,10 +196,15 @@ export function listReviewNotificationStatus() {
       v.official_url AS officialUrl,
       v.checked_at AS checkedAt,
       d.sent_at AS sentAt,
-      CASE WHEN d.lead_id IS NULL THEN 0 ELSE 1 END AS sent
+      CASE WHEN d.lead_id IS NULL THEN 0 ELSE 1 END AS sent,
+      COALESCE(o.status, 'REVIEW_PENDING') AS outreachStatus,
+      o.approved_at AS approvedAt,
+      o.contacted_at AS contactedAt,
+      o.synced_at AS outreachSyncedAt
     FROM leads l
     JOIN lead_verifications v ON v.lead_id = l.id
     LEFT JOIN discord_notifications d ON d.lead_id = l.id
+    LEFT JOIN lead_outreach_status o ON o.lead_id = l.id
     WHERE v.verdict IN ('NO_OFFICIAL_SITE_FOUND', 'SOCIAL_ONLY', 'DEAD_WEBSITE')
       AND (l.phone IS NOT NULL OR l.email IS NOT NULL OR l.instagram IS NOT NULL)
     ORDER BY l.updated_at DESC, l.id DESC
