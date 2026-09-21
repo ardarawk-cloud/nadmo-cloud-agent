@@ -13,16 +13,27 @@ function label(verdict) {
   return "NO OFFICIAL SITE FOUND";
 }
 
-function whatsappUrl(phone) {
+function normalizeWhatsappMobile(phone) {
   if (!phone) return null;
   let digits = String(phone).replace(/\D/g, "");
   if (digits.startsWith("0")) digits = `62${digits.slice(1)}`;
-  if (!digits.startsWith("62") || digits.length < 10) return null;
-  return `https://wa.me/${digits}`;
+
+  // NADMO Scout currently targets Indonesia. Only mobile prefixes (08 / +628)
+  // are treated as WhatsApp-capable. Landlines such as Bali 0361 are phone-only.
+  if (!digits.startsWith("628") || digits.length < 10 || digits.length > 15) {
+    return null;
+  }
+
+  return digits;
+}
+
+function whatsappUrl(phone) {
+  const digits = normalizeWhatsappMobile(phone);
+  return digits ? `https://wa.me/${digits}` : null;
 }
 
 function gatewayActionUrl(lead, action, draft = null) {
-  if (!lead.phone) return null;
+  if (!normalizeWhatsappMobile(lead.phone)) return null;
 
   const base = config.approvalGatewayBaseUrl.replace(/\/+$/, "");
   const params = new URLSearchParams({
@@ -67,7 +78,11 @@ function lineFor(lead, index) {
   const approveUrl = gatewayActionUrl(lead, "approve", draft);
   const contactedUrl = gatewayActionUrl(lead, "contacted");
   const contacts = [
-    lead.phone ? `Phone: ${lead.phone}` : null,
+    lead.phone
+      ? wa
+        ? `Phone: ${lead.phone}`
+        : `Phone: ${lead.phone} (phone only — WhatsApp not detected)`
+      : null,
     wa ? `WhatsApp: ${wa}` : null,
     lead.email ? `Email: ${lead.email}` : null,
     lead.instagram ? `Instagram: ${lead.instagram}` : null
@@ -85,6 +100,7 @@ function lineFor(lead, index) {
     "**Suggested outreach (manual review):**",
     discordCodeBlock(draft),
     approveUrl ? `**Action:** [✅ Approve & WhatsApp](${approveUrl})` : null,
+    !approveUrl && lead.phone ? "**Action:** ☎️ Phone only — no WhatsApp action generated." : null,
     contactedUrl ? `**After sending:** [📌 Mark CONTACTED](${contactedUrl})` : null
   ].filter(Boolean).join("\n");
 }
