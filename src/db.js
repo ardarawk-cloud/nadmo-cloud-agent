@@ -46,7 +46,18 @@ db.exec(`
     status TEXT NOT NULL DEFAULT 'REVIEW_PENDING',
     approved_at TEXT,
     contacted_at TEXT,
+    replied_at TEXT,
+    interested_at TEXT,
+    proposal_at TEXT,
+    won_at TEXT,
+    lost_at TEXT,
+    last_followup_at TEXT,
     synced_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS followup_reminders (
+    lead_id INTEGER PRIMARY KEY,
+    last_reminded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
 `);
 
@@ -59,6 +70,12 @@ function ensureColumn(table, column, definition) {
 
 ensureColumn("leads", "category", "TEXT");
 ensureColumn("leads", "area", "TEXT");
+ensureColumn("lead_outreach_status", "replied_at", "TEXT");
+ensureColumn("lead_outreach_status", "interested_at", "TEXT");
+ensureColumn("lead_outreach_status", "proposal_at", "TEXT");
+ensureColumn("lead_outreach_status", "won_at", "TEXT");
+ensureColumn("lead_outreach_status", "lost_at", "TEXT");
+ensureColumn("lead_outreach_status", "last_followup_at", "TEXT");
 
 const upsertLeadStmt = db.prepare(`
   INSERT INTO leads (name, source_url, page_title, phone, email, instagram, category, area, status)
@@ -95,13 +112,23 @@ const saveVerificationStmt = db.prepare(`
 
 const upsertOutreachStatusStmt = db.prepare(`
   INSERT INTO lead_outreach_status (
-    lead_id, status, approved_at, contacted_at, synced_at
+    lead_id, status, approved_at, contacted_at, replied_at, interested_at,
+    proposal_at, won_at, lost_at, last_followup_at, synced_at
   )
-  VALUES (@leadId, @status, @approvedAt, @contactedAt, CURRENT_TIMESTAMP)
+  VALUES (
+    @leadId, @status, @approvedAt, @contactedAt, @repliedAt, @interestedAt,
+    @proposalAt, @wonAt, @lostAt, @lastFollowUpAt, CURRENT_TIMESTAMP
+  )
   ON CONFLICT(lead_id) DO UPDATE SET
     status = excluded.status,
     approved_at = COALESCE(excluded.approved_at, lead_outreach_status.approved_at),
     contacted_at = COALESCE(excluded.contacted_at, lead_outreach_status.contacted_at),
+    replied_at = COALESCE(excluded.replied_at, lead_outreach_status.replied_at),
+    interested_at = COALESCE(excluded.interested_at, lead_outreach_status.interested_at),
+    proposal_at = COALESCE(excluded.proposal_at, lead_outreach_status.proposal_at),
+    won_at = COALESCE(excluded.won_at, lead_outreach_status.won_at),
+    lost_at = COALESCE(excluded.lost_at, lead_outreach_status.lost_at),
+    last_followup_at = COALESCE(excluded.last_followup_at, lead_outreach_status.last_followup_at),
     synced_at = CURRENT_TIMESTAMP
 `);
 
@@ -143,13 +170,25 @@ export function upsertLeadOutreachStatus({
   leadId,
   status,
   approvedAt = null,
-  contactedAt = null
+  contactedAt = null,
+  repliedAt = null,
+  interestedAt = null,
+  proposalAt = null,
+  wonAt = null,
+  lostAt = null,
+  lastFollowUpAt = null
 }) {
   upsertOutreachStatusStmt.run({
     leadId,
     status,
     approvedAt,
-    contactedAt
+    contactedAt,
+    repliedAt,
+    interestedAt,
+    proposalAt,
+    wonAt,
+    lostAt,
+    lastFollowUpAt
   });
 }
 
@@ -172,7 +211,15 @@ export function listReviewLeads({ unsentOnly = false } = {}) {
       v.verdict,
       v.official_url AS officialUrl,
       v.checked_at AS checkedAt,
-      COALESCE(o.status, 'REVIEW_PENDING') AS outreachStatus
+      COALESCE(o.status, 'REVIEW_PENDING') AS outreachStatus,
+      o.approved_at AS approvedAt,
+      o.contacted_at AS contactedAt,
+      o.replied_at AS repliedAt,
+      o.interested_at AS interestedAt,
+      o.proposal_at AS proposalAt,
+      o.won_at AS wonAt,
+      o.lost_at AS lostAt,
+      o.last_followup_at AS lastFollowUpAt
     FROM leads l
     JOIN lead_verifications v ON v.lead_id = l.id
     LEFT JOIN lead_outreach_status o ON o.lead_id = l.id
@@ -192,6 +239,11 @@ export function listReviewNotificationStatus() {
     SELECT
       l.id,
       l.name,
+      l.phone,
+      l.email,
+      l.instagram,
+      l.category,
+      l.area,
       v.verdict,
       v.official_url AS officialUrl,
       v.checked_at AS checkedAt,
@@ -200,6 +252,12 @@ export function listReviewNotificationStatus() {
       COALESCE(o.status, 'REVIEW_PENDING') AS outreachStatus,
       o.approved_at AS approvedAt,
       o.contacted_at AS contactedAt,
+      o.replied_at AS repliedAt,
+      o.interested_at AS interestedAt,
+      o.proposal_at AS proposalAt,
+      o.won_at AS wonAt,
+      o.lost_at AS lostAt,
+      o.last_followup_at AS lastFollowUpAt,
       o.synced_at AS outreachSyncedAt
     FROM leads l
     JOIN lead_verifications v ON v.lead_id = l.id
@@ -209,6 +267,75 @@ export function listReviewNotificationStatus() {
       AND (l.phone IS NOT NULL OR l.email IS NOT NULL OR l.instagram IS NOT NULL)
     ORDER BY l.updated_at DESC, l.id DESC
   `).all();
+}
+
+export function listFollowupDueLeads() {
+  return db.prepare(`
+    SELECT
+      l.id,
+      l.name,
+      l.phone,
+      l.email,
+      l.instagram,
+      l.category,
+      l.area,
+      o.status AS outreachStatus,
+      o.contacted_at AS contactedAt,
+      o.last_followup_at AS lastFollowUpAt,
+      r.last_reminded_at AS lastRemindedAt
+    FROM leads l
+    JOIN lead_outreach_status o ON o.lead_id = l.id
+    LEFT JOIN followup_reminders r ON r.lead_id = l.id
+    WHERE o.status = 'CONTACTED'
+      AND o.contacted_at IS NOT NULL
+      AND datetime(o.contacted_at) <= datetime('now', '-3 days')
+      AND (
+        o.last_followup_at IS NULL
+        OR datetime(o.last_followup_at) <= datetime('now', '-3 days')
+      )
+      AND (
+        r.last_reminded_at IS NULL
+        OR datetime(r.last_reminded_at) <= datetime('now', '-1 day')
+      )
+    ORDER BY o.contacted_at ASC
+  `).all();
+}
+
+export function markFollowupReminderSent(leadId) {
+  return db.prepare(`
+    INSERT INTO followup_reminders (lead_id, last_reminded_at)
+    VALUES (?, CURRENT_TIMESTAMP)
+    ON CONFLICT(lead_id) DO UPDATE SET
+      last_reminded_at = CURRENT_TIMESTAMP
+  `).run(leadId);
+}
+
+export function getPipelineDailySummary() {
+  const counts = db.prepare(`
+    SELECT
+      COALESCE(o.status, 'REVIEW_PENDING') AS status,
+      COUNT(*) AS count
+    FROM leads l
+    JOIN lead_verifications v ON v.lead_id = l.id
+    LEFT JOIN lead_outreach_status o ON o.lead_id = l.id
+    WHERE v.verdict IN ('NO_OFFICIAL_SITE_FOUND', 'SOCIAL_ONLY', 'DEAD_WEBSITE')
+      AND (l.phone IS NOT NULL OR l.email IS NOT NULL OR l.instagram IS NOT NULL)
+    GROUP BY COALESCE(o.status, 'REVIEW_PENDING')
+  `).all();
+
+  const recent = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM leads l
+    JOIN lead_verifications v ON v.lead_id = l.id
+    WHERE v.verdict IN ('NO_OFFICIAL_SITE_FOUND', 'SOCIAL_ONLY', 'DEAD_WEBSITE')
+      AND (l.phone IS NOT NULL OR l.email IS NOT NULL OR l.instagram IS NOT NULL)
+      AND datetime(v.checked_at) >= datetime('now', '-1 day')
+  `).get();
+
+  return {
+    counts: Object.fromEntries(counts.map((row) => [row.status, row.count])),
+    newReviewReady24h: recent?.count ?? 0
+  };
 }
 
 export function clearDiscordNotification(leadId) {
