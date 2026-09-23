@@ -18,8 +18,6 @@ function normalizeWhatsappMobile(phone) {
   let digits = String(phone).replace(/\D/g, "");
   if (digits.startsWith("0")) digits = `62${digits.slice(1)}`;
 
-  // NADMO Scout currently targets Indonesia. Only mobile prefixes (08 / +628)
-  // are treated as WhatsApp-capable. Landlines such as Bali 0361 are phone-only.
   if (!digits.startsWith("628") || digits.length < 10 || digits.length > 15) {
     return null;
   }
@@ -32,18 +30,32 @@ function whatsappUrl(phone) {
   return digits ? `https://wa.me/${digits}` : null;
 }
 
-function gatewayActionUrl(lead, action, draft = null) {
+function gatewayBase() {
+  return config.approvalGatewayBaseUrl.replace(/\/+$/, "");
+}
+
+function approveWhatsappUrl(lead, draft) {
   if (!normalizeWhatsappMobile(lead.phone)) return null;
 
-  const base = config.approvalGatewayBaseUrl.replace(/\/+$/, "");
   const params = new URLSearchParams({
     leadId: String(lead.id),
     name: lead.name || "Lead",
-    phone: lead.phone
+    phone: lead.phone,
+    text: draft
   });
 
-  if (draft) params.set("text", draft);
-  return `${base}/api/${action}?${params.toString()}`;
+  return `${gatewayBase()}/api/approve?${params.toString()}`;
+}
+
+function stageUrl(lead, status) {
+  const params = new URLSearchParams({
+    leadId: String(lead.id),
+    name: lead.name || "Lead",
+    status
+  });
+
+  if (lead.phone) params.set("phone", lead.phone);
+  return `${gatewayBase()}/api/stage?${params.toString()}`;
 }
 
 function opportunityReason(verdict) {
@@ -75,8 +87,14 @@ function discordCodeBlock(text) {
 function lineFor(lead, index) {
   const draft = outreachDraft(lead);
   const wa = whatsappUrl(lead.phone);
-  const approveUrl = gatewayActionUrl(lead, "approve", draft);
-  const contactedUrl = gatewayActionUrl(lead, "contacted");
+  const approveUrl = approveWhatsappUrl(lead, draft);
+  const contactedUrl = stageUrl(lead, "CONTACTED");
+  const repliedUrl = stageUrl(lead, "REPLIED");
+  const interestedUrl = stageUrl(lead, "INTERESTED");
+  const proposalUrl = stageUrl(lead, "PROPOSAL");
+  const wonUrl = stageUrl(lead, "WON");
+  const lostUrl = stageUrl(lead, "LOST");
+
   const contacts = [
     lead.phone
       ? wa
@@ -99,13 +117,17 @@ function lineFor(lead, index) {
     `Opportunity: ${opportunityReason(lead.verdict)}`,
     "**Suggested outreach (manual review):**",
     discordCodeBlock(draft),
-    approveUrl ? `**Action:** [✅ Approve & WhatsApp](${approveUrl})` : null,
-    !approveUrl && lead.phone ? "**Action:** ☎️ Phone only — no WhatsApp action generated." : null,
-    contactedUrl ? `**After sending:** [📌 Mark CONTACTED](${contactedUrl})` : null
+    approveUrl
+      ? `**Action:** [✅ Approve & WhatsApp](${approveUrl})`
+      : lead.phone
+        ? "**Action:** ☎️ Phone only — call manually."
+        : null,
+    `**After outreach:** [📌 CONTACTED](${contactedUrl})`,
+    `**Pipeline:** [💬 REPLIED](${repliedUrl}) · [🔥 INTERESTED](${interestedUrl}) · [📄 PROPOSAL](${proposalUrl}) · [🏆 WON](${wonUrl}) · [❌ LOST](${lostUrl})`
   ].filter(Boolean).join("\n");
 }
 
-function chunkMessages(header, items, max = 1800) {
+function chunkMessages(header, items, max = 1900) {
   const chunks = [];
   let current = header;
 
@@ -157,10 +179,9 @@ async function main() {
   }
 
   const header = [
-    "**NADMO Scout — Enriched Sales Leads + Outreach Draft**",
+    "**NADMO Scout — Sales Pipeline Lead**",
     `New review-ready leads: ${leads.length}`,
-    "Tap **✅ Approve & WhatsApp** to record APPROVED and open WhatsApp with the draft prefilled.",
-    "After the message is actually sent, tap **📌 Mark CONTACTED**."
+    "Approve outreach, then update the pipeline stage directly from Discord."
   ].join("\n");
 
   const items = leads.map(lineFor);
@@ -175,8 +196,7 @@ async function main() {
   logActivity("DISCORD_NOTIFY", {
     leadCount: leads.length,
     messageCount: chunks.length,
-    whatsappPrefillEnabled: true,
-    approvalTrackingEnabled: true
+    pipelineTrackingEnabled: true
   });
 
   console.log(`Sent ${leads.length} NEW review-ready leads to Discord in ${chunks.length} message(s).`);
