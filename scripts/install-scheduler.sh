@@ -10,11 +10,15 @@ mkdir -p "$LOG_DIR"
 cat > "$CRON_FILE" <<'EOF'
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+CRON_TZ=Asia/Makassar
 0 */6 * * * root cd /opt/nadmo-cloud-agent && /usr/bin/flock -n /tmp/nadmo-scout.lock /usr/bin/npm run cycle >> /opt/nadmo-cloud-agent/logs/scout.log 2>&1
+15 8 * * * root cd /opt/nadmo-cloud-agent && /usr/bin/flock -n /tmp/nadmo-summary.lock /usr/bin/npm run pipeline:summary >> /opt/nadmo-cloud-agent/logs/summary.log 2>&1
 EOF
 
 chmod 644 "$CRON_FILE"
 
 echo "NADMO Scout scheduler installed."
-echo "Schedule: every 6 hours"
-echo "Log: $LOG_DIR/scout.log"
+echo "Scout cycle: every 6 hours (WITA)"
+echo "Daily pipeline summary: 08:15 WITA"
+echo "Scout log: $LOG_DIR/scout.log"
+echo "Summary log: $LOG_DIR/summary.log"
