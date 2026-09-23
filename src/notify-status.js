@@ -1,9 +1,20 @@
 import { closeDb, listReviewNotificationStatus } from "./db.js";
 
+const ORDER = [
+  "REVIEW_PENDING",
+  "APPROVED",
+  "CONTACTED",
+  "REPLIED",
+  "INTERESTED",
+  "PROPOSAL",
+  "WON",
+  "LOST"
+];
+
 async function main() {
   const rows = listReviewNotificationStatus();
 
-  console.log("NADMO Scout — Lead & Outreach Status\n");
+  console.log("NADMO Scout — Sales Pipeline Status\n");
 
   for (const row of rows) {
     console.log({
@@ -13,27 +24,25 @@ async function main() {
       outreachStatus: row.outreachStatus,
       approvedAt: row.approvedAt,
       contactedAt: row.contactedAt,
-      sentToDiscord: Boolean(row.sent),
-      sentAt: row.sentAt,
-      checkedAt: row.checkedAt
+      repliedAt: row.repliedAt,
+      interestedAt: row.interestedAt,
+      proposalAt: row.proposalAt,
+      wonAt: row.wonAt,
+      lostAt: row.lostAt,
+      lastFollowUpAt: row.lastFollowUpAt,
+      sentToDiscord: Boolean(row.sent)
     });
   }
 
-  const sent = rows.filter((row) => row.sent).length;
-  const unsent = rows.length - sent;
-  const approved = rows.filter((row) => row.outreachStatus === "APPROVED").length;
-  const contacted = rows.filter((row) => row.outreachStatus === "CONTACTED").length;
-  const reviewPending = rows.filter((row) => row.outreachStatus === "REVIEW_PENDING").length;
+  const counts = Object.fromEntries(
+    ORDER.map((status) => [
+      status,
+      rows.filter((row) => row.outreachStatus === status).length
+    ])
+  );
 
-  console.log("\nSummary:");
-  console.log({
-    reviewReady: rows.length,
-    reviewPending,
-    approved,
-    contacted,
-    sent,
-    unsent
-  });
+  console.log("\nPipeline summary:");
+  console.log({ total: rows.length, ...counts });
 }
 
 main()
