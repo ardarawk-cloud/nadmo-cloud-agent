@@ -338,6 +338,32 @@ export function getPipelineDailySummary() {
   };
 }
 
+export function getLeadRetryDiagnostic(leadId) {
+  return db.prepare(`
+    SELECT
+      l.id,
+      l.name,
+      l.phone,
+      l.email,
+      l.instagram,
+      l.status AS leadStatus,
+      v.verdict,
+      v.official_url AS officialUrl,
+      v.checked_at AS checkedAt,
+      CASE
+        WHEN v.lead_id IS NULL THEN 'NO_VERIFICATION'
+        WHEN v.verdict NOT IN ('NO_OFFICIAL_SITE_FOUND', 'SOCIAL_ONLY', 'DEAD_WEBSITE')
+          THEN 'VERDICT_NOT_REVIEW_READY'
+        WHEN l.phone IS NULL AND l.email IS NULL AND l.instagram IS NULL
+          THEN 'NO_PUBLIC_CONTACT'
+        ELSE 'REVIEW_READY'
+      END AS retryState
+    FROM leads l
+    LEFT JOIN lead_verifications v ON v.lead_id = l.id
+    WHERE l.id = ?
+  `).get(leadId);
+}
+
 export function clearDiscordNotification(leadId) {
   return db.prepare("DELETE FROM discord_notifications WHERE lead_id = ?").run(leadId);
 }
