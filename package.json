@@ -1,6 +1,6 @@
 {
   "name": "nadmo-cloud-agent",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "private": true,
   "type": "module",
   "description": "NADMO Cloud Agent — safe browser-worker foundation for NADMO Scout",
@@ -19,7 +19,9 @@
     "hunt": "node src/hunt-cli.js",
     "notify": "node src/notify-discord.js",
     "sync:approvals": "node src/sync-approvals.js",
-    "cycle": "npm run sync:approvals && npm run hunt && npm run notify",
+    "followup:check": "node src/followup-discord.js",
+    "pipeline:summary": "npm run sync:approvals && node src/pipeline-summary.js",
+    "cycle": "npm run sync:approvals && npm run followup:check && npm run hunt && npm run notify",
     "notify:status": "npm run sync:approvals && node src/notify-status.js",
     "notify:retry": "node src/notify-retry.js",
     "scheduler:install": "bash scripts/install-scheduler.sh",
