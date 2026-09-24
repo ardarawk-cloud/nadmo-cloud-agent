@@ -21,15 +21,41 @@ function timestampFor(events, status) {
   return events.find((event) => event.status === status)?.createdAt ?? null;
 }
 
-async function syncLead(lead) {
-  const base = config.approvalGatewayBaseUrl.replace(/\/+$/, "");
-  const response = await fetch(`${base}/api/status/${lead.id}`);
+async function fetchStatus(base, leadId) {
+  const url = `${base}/api/status?leadId=${encodeURIComponent(leadId)}`;
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json"
+    }
+  });
+
+  const contentType = response.headers.get("content-type") || "";
+  const body = await response.text();
 
   if (!response.ok) {
-    throw new Error(`Approval gateway HTTP ${response.status}`);
+    throw new Error(
+      `Approval gateway HTTP ${response.status}: ${body.slice(0, 120)}`
+    );
   }
 
-  const data = await response.json();
+  if (!contentType.toLowerCase().includes("application/json")) {
+    throw new Error(
+      `Approval gateway returned non-JSON (${contentType || "unknown"}): ${body.slice(0, 80)}`
+    );
+  }
+
+  try {
+    return JSON.parse(body);
+  } catch (error) {
+    throw new Error(
+      `Approval gateway returned invalid JSON: ${error.message}`
+    );
+  }
+}
+
+async function syncLead(lead) {
+  const base = config.approvalGatewayBaseUrl.replace(/\/+$/, "");
+  const data = await fetchStatus(base, lead.id);
   const events = Array.isArray(data.events) ? data.events : [];
   const latestStatus = PIPELINE_STATUSES.includes(data.latestStatus)
     ? data.latestStatus
@@ -53,7 +79,9 @@ async function syncLead(lead) {
 
 async function main() {
   const leads = listReviewLeads();
-  const summary = Object.fromEntries(PIPELINE_STATUSES.map((status) => [status, 0]));
+  const summary = Object.fromEntries(
+    PIPELINE_STATUSES.map((status) => [status, 0])
+  );
   summary.checked = 0;
   summary.failed = 0;
 
@@ -70,6 +98,13 @@ async function main() {
 
   logActivity("OUTREACH_STATUS_SYNC", summary);
   console.log("NADMO Scout pipeline sync:", summary);
+
+  if (summary.failed > 0) {
+    console.error(
+      "Pipeline sync incomplete. Downstream summary/posting has been blocked."
+    );
+    process.exitCode = 1;
+  }
 }
 
 main()
