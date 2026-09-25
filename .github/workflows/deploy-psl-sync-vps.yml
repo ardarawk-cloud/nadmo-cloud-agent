@@ -1,0 +1,72 @@
+name: Deploy PSL Sync to Existing VPS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "services/psl-sync/**"
+      - ".github/workflows/deploy-psl-sync-vps.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required secrets
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.NADMO_VPS_HOST }}
+          VPS_USER: ${{ secrets.NADMO_VPS_USER }}
+          VPS_KEY: ${{ secrets.NADMO_VPS_SSH_KEY }}
+          SYNC_CODE: ${{ secrets.PSL_SYNC_CODE }}
+        run: |
+          set -euo pipefail
+          test -n "$VPS_HOST"
+          test -n "$VPS_USER"
+          test -n "$VPS_KEY"
+          test -n "$SYNC_CODE"
+
+      - name: Configure SSH
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.NADMO_VPS_HOST }}
+          VPS_PORT: ${{ secrets.NADMO_VPS_PORT }}
+          VPS_KEY: ${{ secrets.NADMO_VPS_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          PORT="${VPS_PORT:-22}"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "$PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
+          echo "VPS_PORT_EFFECTIVE=$PORT" >> "$GITHUB_ENV"
+
+      - name: Upload PSL sync service
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.NADMO_VPS_HOST }}
+          VPS_USER: ${{ secrets.NADMO_VPS_USER }}
+        run: |
+          set -euo pipefail
+          tar -C services/psl-sync -czf /tmp/psl-sync.tgz .
+          scp -P "$VPS_PORT_EFFECTIVE" /tmp/psl-sync.tgz "$VPS_USER@$VPS_HOST:/tmp/psl-sync.tgz"
+          ssh -p "$VPS_PORT_EFFECTIVE" "$VPS_USER@$VPS_HOST" "rm -rf /tmp/psl-sync-src && mkdir -p /tmp/psl-sync-src && tar -xzf /tmp/psl-sync.tgz -C /tmp/psl-sync-src"
+
+      - name: Deploy service and Nginx route
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.NADMO_VPS_HOST }}
+          VPS_USER: ${{ secrets.NADMO_VPS_USER }}
+          PSL_SYNC_CODE: ${{ secrets.PSL_SYNC_CODE }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$PSL_SYNC_CODE" | ssh -p "$VPS_PORT_EFFECTIVE" "$VPS_USER@$VPS_HOST" '
+            set -euo pipefail
+            read -r PSL_SYNC_CODE
+            export PSL_SYNC_CODE
+            chmod +x /tmp/psl-sync-src/deploy_vps.sh
+            /tmp/psl-sync-src/deploy_vps.sh
+          '
