@@ -1,0 +1,14 @@
+services:
+  psl-sync:
+    build: .
+    container_name: papa-sauce-lab-sync
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - psl_sync_data:/data
+    ports:
+      - "127.0.0.1:18081:8080"
+
+volumes:
+  psl_sync_data:
