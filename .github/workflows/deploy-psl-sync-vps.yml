@@ -11,62 +11,73 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      VPS_HOST: 151.243.222.93
+      VPS_PORT: "34567"
+      VPS_USER: root
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate required secrets
+      - name: Validate deployment secrets
         shell: bash
         env:
-          VPS_HOST: ${{ secrets.NADMO_VPS_HOST }}
-          VPS_USER: ${{ secrets.NADMO_VPS_USER }}
           VPS_KEY: ${{ secrets.NADMO_VPS_SSH_KEY }}
+          VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
           SYNC_CODE: ${{ secrets.PSL_SYNC_CODE }}
         run: |
           set -euo pipefail
-          test -n "$VPS_HOST"
-          test -n "$VPS_USER"
-          test -n "$VPS_KEY"
           test -n "$SYNC_CODE"
+          if [ -z "$VPS_KEY" ] && [ -z "$VPS_PASSWORD" ]; then
+            echo "Set either NADMO_VPS_SSH_KEY or NADMO_VPS_PASSWORD"
+            exit 1
+          fi
 
       - name: Configure SSH
         shell: bash
         env:
-          VPS_HOST: ${{ secrets.NADMO_VPS_HOST }}
-          VPS_PORT: ${{ secrets.NADMO_VPS_PORT }}
           VPS_KEY: ${{ secrets.NADMO_VPS_SSH_KEY }}
+          VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
         run: |
           set -euo pipefail
-          PORT="${VPS_PORT:-22}"
           mkdir -p ~/.ssh
-          printf '%s\n' "$VPS_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -p "$PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
-          echo "VPS_PORT_EFFECTIVE=$PORT" >> "$GITHUB_ENV"
+          ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
+          if [ -n "$VPS_KEY" ]; then
+            printf '%s\n' "$VPS_KEY" > ~/.ssh/id_ed25519
+            chmod 600 ~/.ssh/id_ed25519
+            echo "AUTH_MODE=key" >> "$GITHUB_ENV"
+          else
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq sshpass
+            echo "AUTH_MODE=password" >> "$GITHUB_ENV"
+          fi
 
       - name: Upload PSL sync service
         shell: bash
         env:
-          VPS_HOST: ${{ secrets.NADMO_VPS_HOST }}
-          VPS_USER: ${{ secrets.NADMO_VPS_USER }}
+          VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
         run: |
           set -euo pipefail
           tar -C services/psl-sync -czf /tmp/psl-sync.tgz .
-          scp -P "$VPS_PORT_EFFECTIVE" /tmp/psl-sync.tgz "$VPS_USER@$VPS_HOST:/tmp/psl-sync.tgz"
-          ssh -p "$VPS_PORT_EFFECTIVE" "$VPS_USER@$VPS_HOST" "rm -rf /tmp/psl-sync-src && mkdir -p /tmp/psl-sync-src && tar -xzf /tmp/psl-sync.tgz -C /tmp/psl-sync-src"
+          if [ "$AUTH_MODE" = "key" ]; then
+            scp -P "$VPS_PORT" /tmp/psl-sync.tgz "$VPS_USER@$VPS_HOST:/tmp/psl-sync.tgz"
+            ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "rm -rf /tmp/psl-sync-src && mkdir -p /tmp/psl-sync-src && tar -xzf /tmp/psl-sync.tgz -C /tmp/psl-sync-src"
+          else
+            sshpass -p "$VPS_PASSWORD" scp -P "$VPS_PORT" /tmp/psl-sync.tgz "$VPS_USER@$VPS_HOST:/tmp/psl-sync.tgz"
+            sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "rm -rf /tmp/psl-sync-src && mkdir -p /tmp/psl-sync-src && tar -xzf /tmp/psl-sync.tgz -C /tmp/psl-sync-src"
+          fi
 
       - name: Deploy service and Nginx route
         shell: bash
         env:
-          VPS_HOST: ${{ secrets.NADMO_VPS_HOST }}
-          VPS_USER: ${{ secrets.NADMO_VPS_USER }}
+          VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
           PSL_SYNC_CODE: ${{ secrets.PSL_SYNC_CODE }}
         run: |
           set -euo pipefail
-          printf '%s' "$PSL_SYNC_CODE" | ssh -p "$VPS_PORT_EFFECTIVE" "$VPS_USER@$VPS_HOST" '
-            set -euo pipefail
-            read -r PSL_SYNC_CODE
-            export PSL_SYNC_CODE
-            chmod +x /tmp/psl-sync-src/deploy_vps.sh
-            /tmp/psl-sync-src/deploy_vps.sh
-          '
+          REMOTE='read -r PSL_SYNC_CODE; export PSL_SYNC_CODE; chmod +x /tmp/psl-sync-src/deploy_vps.sh; /tmp/psl-sync-src/deploy_vps.sh'
+          if [ "$AUTH_MODE" = "key" ]; then
+            printf '%s' "$PSL_SYNC_CODE" | ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "$REMOTE"
+          else
+            printf '%s' "$PSL_SYNC_CODE" | sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "$REMOTE"
+          fi
