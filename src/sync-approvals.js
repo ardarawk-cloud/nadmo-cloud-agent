@@ -22,7 +22,7 @@ function timestampFor(events, status) {
 }
 
 async function fetchStatus(base, leadId) {
-  const url = `${base}/api/status?leadId=${encodeURIComponent(leadId)}`;
+  const url = `${base}/api/status/${encodeURIComponent(leadId)}`;
   const response = await fetch(url, {
     headers: {
       Accept: "application/json"
