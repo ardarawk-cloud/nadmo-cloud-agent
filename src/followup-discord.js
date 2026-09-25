@@ -34,7 +34,8 @@ function followupUrl(lead) {
   });
 
   const base = config.approvalGatewayBaseUrl.replace(/\/+$/, "");
-  return `${base}/api/followup?${params.toString()}`;
+  params.set("bridge", "followup");
+  return `${base}/?${params.toString()}`;
 }
 
 function stageUrl(lead, status) {
@@ -46,7 +47,8 @@ function stageUrl(lead, status) {
   if (lead.phone) params.set("phone", lead.phone);
 
   const base = config.approvalGatewayBaseUrl.replace(/\/+$/, "");
-  return `${base}/api/stage?${params.toString()}`;
+  params.set("bridge", "stage");
+  return `${base}/?${params.toString()}`;
 }
 
 async function sendDiscord(webhookUrl, content) {
