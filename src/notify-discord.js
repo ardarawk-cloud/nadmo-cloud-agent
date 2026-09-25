@@ -44,7 +44,8 @@ function approveWhatsappUrl(lead, draft) {
     text: draft
   });
 
-  return `${gatewayBase()}/api/approve?${params.toString()}`;
+  params.set("bridge", "approve");
+  return `${gatewayBase()}/?${params.toString()}`;
 }
 
 function stageUrl(lead, status) {
@@ -55,7 +56,8 @@ function stageUrl(lead, status) {
   });
 
   if (lead.phone) params.set("phone", lead.phone);
-  return `${gatewayBase()}/api/stage?${params.toString()}`;
+  params.set("bridge", "stage");
+  return `${gatewayBase()}/?${params.toString()}`;
 }
 
 function opportunityReason(verdict) {
