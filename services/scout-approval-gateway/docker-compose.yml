@@ -1,0 +1,9 @@
+services:
+  scout-approval-gateway:
+    build: .
+    container_name: nadmo-scout-approval-gateway
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8788:8788"
+    volumes:
+      - ./data:/data
