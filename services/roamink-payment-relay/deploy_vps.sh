@@ -5,8 +5,7 @@ APP_DIR="/opt/nadmo/roamink-payment-relay"
 SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
 SERVICE="/etc/systemd/system/nadmo-roamink-payment-relay.service"
 DOMAIN="relay.nadmo.id"
-NGINX_SITE="/etc/nginx/sites-available/roamink-relay"
-NGINX_LINK="/etc/nginx/sites-enabled/roamink-relay"
+APACHE_SITE="/etc/apache2/sites-available/roamink-relay.conf"
 
 mkdir -p "$APP_DIR"
 cp "$SRC_DIR/server.py" "$APP_DIR/server.py"
@@ -40,34 +39,34 @@ systemctl is-active --quiet nadmo-roamink-payment-relay
 curl -fsS "http://127.0.0.1:8791/api/_healthcheck"
 echo
 
-if ! command -v nginx >/dev/null 2>&1; then
+# Nginx was installed during initial relay setup but Apache is the VPS web server.
+systemctl disable --now nginx >/dev/null 2>&1 || true
+
+if ! command -v apache2ctl >/dev/null 2>&1; then
   apt-get update -qq
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nginx
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq apache2
 fi
 
-cat > "$NGINX_SITE" <<'NGINX'
-server {
-    listen 80;
-    listen [::]:80;
-    server_name relay.nadmo.id;
+a2enmod proxy proxy_http headers ssl rewrite >/dev/null
 
-    client_max_body_size 64k;
+cat > "$APACHE_SITE" <<'APACHE'
+<VirtualHost *:80>
+    ServerName relay.nadmo.id
 
-    location / {
-        proxy_pass http://127.0.0.1:8791;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-NGINX
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:8791/
+    ProxyPassReverse / http://127.0.0.1:8791/
 
-ln -sfn "$NGINX_SITE" "$NGINX_LINK"
-nginx -t
-systemctl enable --now nginx
-systemctl reload nginx
+    RequestHeader set X-Forwarded-Proto "http"
+    ErrorLog ${APACHE_LOG_DIR}/roamink-relay-error.log
+    CustomLog ${APACHE_LOG_DIR}/roamink-relay-access.log combined
+</VirtualHost>
+APACHE
+
+a2ensite roamink-relay.conf >/dev/null
+apache2ctl configtest
+systemctl enable --now apache2
+systemctl reload apache2
 
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q '^Status: active'; then
   ufw allow 80/tcp >/dev/null
@@ -82,16 +81,19 @@ for attempt in $(seq 1 12); do
   sleep 10
 done
 
-if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+if ! command -v certbot >/dev/null 2>&1; then
   apt-get update -qq
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq certbot python3-certbot-nginx
-  certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect
-else
-  certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect || true
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq certbot python3-certbot-apache
 fi
 
-nginx -t
-systemctl reload nginx
+if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+  certbot --apache -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect
+else
+  certbot --apache -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect || true
+fi
+
+apache2ctl configtest
+systemctl reload apache2
 
 curl -fsS "https://$DOMAIN/api/_healthcheck"
 echo
