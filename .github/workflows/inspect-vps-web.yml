@@ -1,0 +1,38 @@
+name: Inspect VPS Web Stack
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/inspect-vps-web.yml"
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    env:
+      VPS_HOST: 151.243.222.93
+      VPS_PORT: "45678"
+      VPS_USER: root
+      VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
+    steps:
+      - name: Inspect listeners and web services
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
+          sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" '
+            echo "=== LISTENERS ==="
+            ss -ltnp | grep -E ":(80|443|8791)\b" || true
+            echo "=== SERVICES ==="
+            systemctl is-active apache2 2>/dev/null || true
+            systemctl is-active nginx 2>/dev/null || true
+            systemctl is-active caddy 2>/dev/null || true
+            echo "=== PROCESSES ==="
+            ps -ef | grep -E "apache2|httpd|nginx|caddy|python.*8791" | grep -v grep || true
+            echo "=== IPV6 ==="
+            ip -6 addr show scope global || true
+          '
