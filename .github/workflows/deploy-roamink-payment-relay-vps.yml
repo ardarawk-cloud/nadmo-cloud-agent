@@ -49,8 +49,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          HEALTH="$(curl -fsS --max-time 20 https://agent.nadmo.id/roamink-payment/api/_healthcheck)"
-          EGRESS="$(curl -fsS --max-time 20 https://agent.nadmo.id/roamink-payment/api/_egress)"
+          HEALTH="$(curl -fsS --max-time 20 https://relay.nadmo.id/api/_healthcheck)"
+          EGRESS="$(curl -fsS --max-time 20 https://relay.nadmo.id/api/_egress)"
           echo "$HEALTH"
           echo "$EGRESS"
           echo "$HEALTH" | grep -q '"service":"roamink-payment-relay"'
