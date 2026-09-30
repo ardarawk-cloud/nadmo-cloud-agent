@@ -1,0 +1,64 @@
+name: Deploy BIDIGI Core
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "services/bidigi-core/**"
+      - ".github/workflows/deploy-bidigi-core-vps.yml"
+
+concurrency:
+  group: bidigi-core-vps
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VPS_HOST: 151.243.222.93
+      VPS_PORT: "45678"
+      VPS_USER: root
+      VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$VPS_PASSWORD"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload BIDIGI core
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -C services/bidigi-core -czf /tmp/bidigi-core.tgz .
+          sshpass -p "$VPS_PASSWORD" scp -P "$VPS_PORT" /tmp/bidigi-core.tgz "$VPS_USER@$VPS_HOST:/tmp/bidigi-core.tgz"
+          sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "rm -rf /tmp/bidigi-core-src && mkdir -p /tmp/bidigi-core-src && tar -xzf /tmp/bidigi-core.tgz -C /tmp/bidigi-core-src"
+
+      - name: Deploy BIDIGI
+        shell: bash
+        run: |
+          set -euo pipefail
+          sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "chmod +x /tmp/bidigi-core-src/deploy_vps.sh && /tmp/bidigi-core-src/deploy_vps.sh"
+
+      - name: Verify BIDIGI
+        shell: bash
+        run: |
+          set -euo pipefail
+          HEALTH="$(curl -fsS --max-time 30 https://bidigi.nadmo.id/api/_healthcheck)"
+          EGRESS="$(curl -fsS --max-time 30 https://bidigi.nadmo.id/api/_egress)"
+          PAGE="$(curl -fsS --max-time 30 https://bidigi.nadmo.id/)"
+          echo "$HEALTH"
+          echo "$EGRESS"
+          echo "$HEALTH" | grep -q '"service":"bidigi-core"'
+          echo "$EGRESS" | grep -q '"outbound_ipv4":"151.243.222.93"'
+          echo "$PAGE" | grep -q 'BIDIGI'
+          echo "$PAGE" | grep -q '/bidigi-live.js'
