@@ -8,6 +8,10 @@ on:
       - "services/roamink-payment-relay/**"
       - ".github/workflows/deploy-roamink-payment-relay-vps.yml"
 
+concurrency:
+  group: roamink-payment-relay-vps
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
