@@ -299,7 +299,8 @@ def loop():
             if digi_ok():
                 try:last_attempt=int(meta("last_pricelist_attempt") or "0")
                 except:last_attempt=0
-                if time.time()-last_attempt>=max(305,SYNC):
+                needed_delay=305 if product_count("prepaid")==0 or product_count("postpaid")==0 else max(305,SYNC)
+                if time.time()-last_attempt>=needed_delay:
                     print("sync",sync_products(),flush=True)
                 with LOCK,conn() as c: refs=[x["ref_id"] for x in c.execute("SELECT ref_id FROM orders WHERE payment_status='paid' AND supplier_status='pending' ORDER BY updated_at LIMIT 50").fetchall()]
                 for ref in refs: fulfill(ref)
