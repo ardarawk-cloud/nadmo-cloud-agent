@@ -1,4 +1,4 @@
-name: Inspect BIDIGI Sync Error
+name: Inspect BIDIGI Products
 on:
   push:
     branches: [main]
@@ -13,7 +13,7 @@ jobs:
       VPS_USER: root
       VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
     steps:
-      - name: Read sanitized BIDIGI logs
+      - name: Read BIDIGI product API
         run: |
           set -euo pipefail
           sudo apt-get update -qq
@@ -22,7 +22,9 @@ jobs:
           ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
           sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" '
             echo "=== HEALTH ==="
-            curl -fsS http://127.0.0.1:8792/api/_healthcheck; echo
-            echo "=== RECENT LOG ==="
-            journalctl -u nadmo-bidigi-core --since "10 minutes ago" --no-pager | tail -120
+            curl -fsS http://127.0.0.1:8792/api/_healthcheck
+            echo
+            echo "=== PRODUCTS ==="
+            curl -fsS "http://127.0.0.1:8792/api/products"
+            echo
           '
