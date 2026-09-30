@@ -1,4 +1,4 @@
-name: Inspect VPS Web Stack
+name: Inspect BIDIGI Digiflazz Cache
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
       VPS_USER: root
       VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
     steps:
-      - name: Inspect listeners and web services
+      - name: Inspect BIDIGI runtime without exposing credentials
         shell: bash
         run: |
           set -euo pipefail
@@ -24,28 +24,30 @@ jobs:
           sudo apt-get install -y -qq sshpass
           mkdir -p ~/.ssh
           ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
+
           sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" '
-            echo "=== LISTENERS ==="
-            ss -ltnp | grep -E ":(80|443|8791|8792)\b" || true
-            echo "=== SERVICES ==="
-            systemctl is-active apache2 2>/dev/null || true
-            systemctl is-active nadmo-bidigi-core 2>/dev/null || true
-            echo "=== BIDIGI ORIGIN HTTP ==="
-            curl -sS -i --max-time 20 -H "Host: bidigi.nadmo.id" http://127.0.0.1/api/_healthcheck | head -40 || true
-            echo "=== BIDIGI ENV FLAGS ==="
-            test -s /etc/nadmo/bidigi.env && echo "env_file=present" || echo "env_file=missing"
-            grep -q "^DIGIFLAZZ_USERNAME=..*" /etc/nadmo/bidigi.env 2>/dev/null && echo "digiflazz_username=set" || echo "digiflazz_username=empty"
-            grep -q "^DIGIFLAZZ_API_KEY=..*" /etc/nadmo/bidigi.env 2>/dev/null && echo "digiflazz_key=set" || echo "digiflazz_key=empty"
-            grep -q "^IPAYMU_VA=..*" /etc/nadmo/bidigi.env 2>/dev/null && echo "ipaymu_va=set" || echo "ipaymu_va=empty"
-            grep -q "^IPAYMU_API_KEY=..*" /etc/nadmo/bidigi.env 2>/dev/null && echo "ipaymu_key=set" || echo "ipaymu_key=empty"
-            echo "=== APACHE BIDIGI ==="
-            apache2ctl -S 2>/dev/null | grep -i bidigi || true
+            set -e
+            echo "=== SERVICE ==="
+            systemctl status nadmo-bidigi-core --no-pager -l 2>/dev/null | head -35 || true
+
+            echo "=== BIDIGI FILES ==="
+            find /opt/nadmo -maxdepth 4 -type f 2>/dev/null |
+              grep -Ei "bidigi|catalog|product|digiflazz|cache" |
+              head -200 || true
+
+            echo "=== BIDIGI SOURCE ENDPOINT HINTS ==="
+            grep -RniE "price-list|buyer_sku_code|catalog|products|digiflazz" /opt/nadmo/bidigi* 2>/dev/null |
+              grep -vE "API_KEY|PASSWORD|SECRET|TOKEN" |
+              head -220 || true
+
+            echo "=== LOCAL HEALTH ==="
+            curl -fsS --max-time 15 -H "Host: bidigi.nadmo.id" http://127.0.0.1/api/_healthcheck || true
+            echo
+
+            for endpoint in /api/catalog /api/products /api/products?category=eSIM /api/catalog?brand=eSIM /api/digiflazz/products; do
+              echo "--- $endpoint"
+              curl -sS --max-time 15 -H "Host: bidigi.nadmo.id" "http://127.0.0.1$endpoint" |
+                head -c 2500 || true
+              echo
+            done
           '
-      - name: Check public BIDIGI through Cloudflare
-        shell: bash
-        run: |
-          set +e
-          echo "=== DNS ==="\n          getent ahostsv4 relay.nadmo.id | head -3 || true\n          getent ahostsv4 bidigi.nadmo.id | head -3 || true\n          echo "=== PUBLIC HTTP ==="
-          curl -sS -i --max-time 20 http://bidigi.nadmo.id/api/_healthcheck | head -50
-          echo "=== PUBLIC HTTPS ==="
-          curl -sS -i --max-time 20 https://bidigi.nadmo.id/api/_healthcheck | head -50
