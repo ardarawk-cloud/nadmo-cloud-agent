@@ -1,0 +1,57 @@
+name: Deploy ROAMINK Payment Relay
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "services/roamink-payment-relay/**"
+      - ".github/workflows/deploy-roamink-payment-relay-vps.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VPS_HOST: 151.243.222.93
+      VPS_PORT: "45678"
+      VPS_USER: root
+      VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure password SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$VPS_PASSWORD"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload ROAMINK payment relay
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -C services/roamink-payment-relay -czf /tmp/roamink-payment-relay.tgz .
+          sshpass -p "$VPS_PASSWORD" scp -P "$VPS_PORT" /tmp/roamink-payment-relay.tgz "$VPS_USER@$VPS_HOST:/tmp/roamink-payment-relay.tgz"
+          sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "rm -rf /tmp/roamink-payment-relay-src && mkdir -p /tmp/roamink-payment-relay-src && tar -xzf /tmp/roamink-payment-relay.tgz -C /tmp/roamink-payment-relay-src"
+
+      - name: Deploy relay and Nginx route
+        shell: bash
+        run: |
+          set -euo pipefail
+          sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "chmod +x /tmp/roamink-payment-relay-src/deploy_vps.sh && /tmp/roamink-payment-relay-src/deploy_vps.sh"
+
+      - name: Verify public relay and outbound IP
+        shell: bash
+        run: |
+          set -euo pipefail
+          HEALTH="$(curl -fsS --max-time 20 https://agent.nadmo.id/roamink-payment/api/_healthcheck)"
+          EGRESS="$(curl -fsS --max-time 20 https://agent.nadmo.id/roamink-payment/api/_egress)"
+          echo "$HEALTH"
+          echo "$EGRESS"
+          echo "$HEALTH" | grep -q '"service":"roamink-payment-relay"'
+          echo "$EGRESS" | grep -q '"outbound_ipv4":"151.243.222.93"'
