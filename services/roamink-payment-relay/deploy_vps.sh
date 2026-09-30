@@ -33,7 +33,8 @@ WantedBy=multi-user.target
 UNIT
 
 systemctl daemon-reload
-systemctl enable --now nadmo-roamink-payment-relay
+systemctl enable nadmo-roamink-payment-relay
+systemctl restart nadmo-roamink-payment-relay
 sleep 2
 systemctl is-active --quiet nadmo-roamink-payment-relay
 curl -fsS "http://127.0.0.1:8791/api/_healthcheck"
