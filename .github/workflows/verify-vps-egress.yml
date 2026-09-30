@@ -1,0 +1,48 @@
+name: Verify VPS Egress IP
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/verify-vps-egress.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      VPS_HOST: 151.243.222.93
+      VPS_PORT: "34567"
+      VPS_USER: root
+    steps:
+      - name: Configure SSH
+        shell: bash
+        env:
+          VPS_KEY: ${{ secrets.NADMO_VPS_SSH_KEY }}
+          VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
+          if [ -n "$VPS_KEY" ]; then
+            printf '%s\n' "$VPS_KEY" > ~/.ssh/id_ed25519
+            chmod 600 ~/.ssh/id_ed25519
+            echo "AUTH_MODE=key" >> "$GITHUB_ENV"
+          else
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq sshpass
+            echo "AUTH_MODE=password" >> "$GITHUB_ENV"
+          fi
+
+      - name: Verify public outbound IPv4
+        shell: bash
+        env:
+          VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
+        run: |
+          set -euo pipefail
+          CMD='IP=$(curl -4 --fail --silent --show-error --max-time 20 https://api.ipify.org); echo "OUTBOUND_IPV4=$IP"; test -n "$IP"'
+          if [ "$AUTH_MODE" = "key" ]; then
+            ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "$CMD"
+          else
+            sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "$CMD"
+          fi
