@@ -3,17 +3,42 @@ set -euo pipefail
 
 APP_DIR="/opt/nadmo/roamink-payment-relay"
 SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
+SERVICE="/etc/systemd/system/nadmo-roamink-payment-relay.service"
 NGINX_SNIPPET="/etc/nginx/snippets/roamink-payment-relay.conf"
 DOMAIN="agent.nadmo.id"
 
 mkdir -p "$APP_DIR"
-rsync -a --delete "$SRC_DIR/" "$APP_DIR/"
+cp "$SRC_DIR/server.py" "$APP_DIR/server.py"
+chmod 644 "$APP_DIR/server.py"
 
-cd "$APP_DIR"
-docker compose up -d --build
+cat > "$SERVICE" <<'UNIT'
+[Unit]
+Description=NADMO ROAMINK iPaymu Payment Relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/nadmo/roamink-payment-relay
+Environment=PORT=8791
+ExecStart=/usr/bin/python3 /opt/nadmo/roamink-payment-relay/server.py
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable --now nadmo-roamink-payment-relay
+sleep 2
+systemctl is-active --quiet nadmo-roamink-payment-relay
 
 mkdir -p /etc/nginx/snippets
-cp "$APP_DIR/nginx-roamink-payment.conf" "$NGINX_SNIPPET"
+cp "$SRC_DIR/nginx-roamink-payment.conf" "$NGINX_SNIPPET"
 
 CONF="$(grep -RIlE "server_name[^;]*agent\.nadmo\.id" /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null | head -n1 || true)"
 if [ -z "$CONF" ]; then
@@ -61,6 +86,8 @@ if ! nginx -t; then
 fi
 
 systemctl reload nginx
+curl -fsS "http://127.0.0.1:8791/api/_healthcheck"
+echo
 curl -fsS "https://$DOMAIN/roamink-payment/api/_healthcheck"
 echo
 curl -fsS "https://$DOMAIN/roamink-payment/api/_egress"
