@@ -43,6 +43,8 @@ jobs:
             echo "=== BIDIGI OLD SITE ==="
             curl -IL --max-time 20 https://bidigi-shop.ardarawk.chatgpt.site/ 2>/dev/null | head -40 || true
             curl -L --max-time 20 https://bidigi-shop.ardarawk.chatgpt.site/ 2>/dev/null | head -80 || true
+            echo "=== BIDIGI DOM TARGETS ==="
+            curl -sL --max-time 20 https://bidigi-shop.ardarawk.chatgpt.site/ | sed "s/></>\\n</g" | grep -E "Harga demo|Mode demo|Pulsa 10.000|Paket Data|Top Up Game|E-Wallet|Tagihan|Dashboard Admin|Lihat promo|Pilih produk|data-slot=\\\"button\\\"" | head -260 || true
             echo "=== IPV6 ==="
             ip -6 addr show scope global || true
           '
