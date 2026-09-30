@@ -26,25 +26,26 @@ jobs:
           ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
           sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" '
             echo "=== LISTENERS ==="
-            ss -ltnp | grep -E ":(80|443|8791)\b" || true
+            ss -ltnp | grep -E ":(80|443|8791|8792)\b" || true
             echo "=== SERVICES ==="
             systemctl is-active apache2 2>/dev/null || true
-            systemctl is-active nginx 2>/dev/null || true
-            systemctl is-active caddy 2>/dev/null || true
-            echo "=== PROCESSES ==="
-            ps -ef | grep -E "apache2|httpd|nginx|caddy|python.*8791" | grep -v grep || true
-            echo "=== APACHE SITES ==="
-            ls -la /etc/apache2/sites-enabled 2>/dev/null || true
-            for f in /etc/apache2/sites-enabled/*.conf; do echo "--- $f"; sed -n "1,220p" "$f"; done 2>/dev/null || true
-            echo "=== DOCROOTS ==="
-            find /var/www -maxdepth 3 -type f -printf "%p %s bytes\n" 2>/dev/null | head -200 || true
-            echo "=== BIDIGI ==="
-            grep -Ril "bidigi" /etc/apache2 /var/www /opt/nadmo 2>/dev/null | head -100 || true
-            echo "=== BIDIGI OLD SITE ==="
-            curl -IL --max-time 20 https://bidigi-shop.ardarawk.chatgpt.site/ 2>/dev/null | head -40 || true
-            curl -L --max-time 20 https://bidigi-shop.ardarawk.chatgpt.site/ 2>/dev/null | head -80 || true
-            echo "=== BIDIGI DOM TARGETS ==="
-            curl -sL --max-time 20 https://bidigi-shop.ardarawk.chatgpt.site/ | sed "s/></>\\n</g" | grep -E "Harga demo|Mode demo|Pulsa 10.000|Paket Data|Top Up Game|E-Wallet|Tagihan|Dashboard Admin|Lihat promo|Pilih produk|data-slot=\\\"button\\\"" | head -260 || true
-            echo "=== IPV6 ==="
-            ip -6 addr show scope global || true
+            systemctl is-active nadmo-bidigi-core 2>/dev/null || true
+            echo "=== BIDIGI ORIGIN HTTP ==="
+            curl -sS -i --max-time 20 -H "Host: bidigi.nadmo.id" http://127.0.0.1/api/_healthcheck | head -40 || true
+            echo "=== BIDIGI ENV FLAGS ==="
+            test -s /etc/nadmo/bidigi.env && echo "env_file=present" || echo "env_file=missing"
+            grep -q "^DIGIFLAZZ_USERNAME=..*" /etc/nadmo/bidigi.env 2>/dev/null && echo "digiflazz_username=set" || echo "digiflazz_username=empty"
+            grep -q "^DIGIFLAZZ_API_KEY=..*" /etc/nadmo/bidigi.env 2>/dev/null && echo "digiflazz_key=set" || echo "digiflazz_key=empty"
+            grep -q "^IPAYMU_VA=..*" /etc/nadmo/bidigi.env 2>/dev/null && echo "ipaymu_va=set" || echo "ipaymu_va=empty"
+            grep -q "^IPAYMU_API_KEY=..*" /etc/nadmo/bidigi.env 2>/dev/null && echo "ipaymu_key=set" || echo "ipaymu_key=empty"
+            echo "=== APACHE BIDIGI ==="
+            apache2ctl -S 2>/dev/null | grep -i bidigi || true
           '
+      - name: Check public BIDIGI through Cloudflare
+        shell: bash
+        run: |
+          set +e
+          echo "=== PUBLIC HTTP ==="
+          curl -sS -i --max-time 20 http://bidigi.nadmo.id/api/_healthcheck | head -50
+          echo "=== PUBLIC HTTPS ==="
+          curl -sS -i --max-time 20 https://bidigi.nadmo.id/api/_healthcheck | head -50
