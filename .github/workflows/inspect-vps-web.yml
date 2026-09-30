@@ -40,6 +40,9 @@ jobs:
             find /var/www -maxdepth 3 -type f -printf "%p %s bytes\n" 2>/dev/null | head -200 || true
             echo "=== BIDIGI ==="
             grep -Ril "bidigi" /etc/apache2 /var/www /opt/nadmo 2>/dev/null | head -100 || true
+            echo "=== BIDIGI OLD SITE ==="
+            curl -IL --max-time 20 https://bidigi-shop.ardarawk.chatgpt.site/ 2>/dev/null | head -40 || true
+            curl -L --max-time 20 https://bidigi-shop.ardarawk.chatgpt.site/ 2>/dev/null | head -80 || true
             echo "=== IPV6 ==="
             ip -6 addr show scope global || true
           '
