@@ -12,10 +12,10 @@ SITE="/etc/apache2/sites-available/bidigi.conf"
 mkdir -p "$APP_DIR" "$ENV_DIR" "$DATA_DIR"
 install -m 0644 "$SRC_DIR/server.py" "$APP_DIR/server.py"
 install -m 0644 "$SRC_DIR/bidigi-live.js" "$APP_DIR/bidigi-live.js"
+install -m 0755 "$SRC_DIR/configure.sh" "$APP_DIR/configure.sh"
 
 if [ ! -f "$ENV_FILE" ]; then
 cat > "$ENV_FILE" <<'ENV'
-# BIDIGI secrets - root only, never commit.
 DIGIFLAZZ_USERNAME=
 DIGIFLAZZ_API_KEY=
 DIGIFLAZZ_WEBHOOK_SECRET=
@@ -52,7 +52,6 @@ PrivateTmp=true
 [Install]
 WantedBy=multi-user.target
 UNIT
-
 systemctl daemon-reload
 systemctl enable nadmo-bidigi-core >/dev/null
 systemctl restart nadmo-bidigi-core
@@ -66,8 +65,7 @@ if ! command -v apache2ctl >/dev/null 2>&1; then
   apt-get update -qq
   DEBIAN_FRONTEND=noninteractive apt-get install -y -qq apache2
 fi
-a2enmod proxy proxy_http proxy_connect ssl headers rewrite filter substitute >/dev/null
-
+a2enmod proxy proxy_http proxy_connect ssl headers rewrite filter substitute alias >/dev/null
 cat > "$SITE" <<APACHE
 <VirtualHost *:80>
     ServerName $DOMAIN
@@ -86,7 +84,6 @@ cat > "$SITE" <<APACHE
 
     ProxyPass / $UPSTREAM/ nocanon
     ProxyPassReverse / $UPSTREAM/
-
     <Location />
         AddOutputFilterByType SUBSTITUTE text/html
         Substitute "s|</body>|<script defer src=\"/bidigi-live.js\"></script></body>|ni"
@@ -96,33 +93,27 @@ cat > "$SITE" <<APACHE
     CustomLog /var/log/apache2/bidigi-access.log combined
 </VirtualHost>
 APACHE
-
 a2ensite bidigi.conf >/dev/null
 apache2ctl configtest
 systemctl enable --now apache2 >/dev/null
 systemctl reload apache2
 
-if command -v ufw >/dev/null 2>&1 && ufw status | grep -q '^Status: active'; then
-  ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null
-fi
-curl -fsS --max-time 30 "$UPSTREAM/" >/dev/null
+echo "=== BIDIGI ORIGIN HEALTH ==="
+curl -fsS http://127.0.0.1:8792/api/_healthcheck; echo
+echo "=== BIDIGI EGRESS ==="
+curl -fsS http://127.0.0.1:8792/api/_egress; echo
+echo "=== BIDIGI ORIGIN STOREFRONT ==="
+PAGE="$(curl -fsS -H "Host: $DOMAIN" http://127.0.0.1/)"
+echo "$PAGE" | grep -q 'BIDIGI' && echo "BIDIGI storefront OK"
+echo "$PAGE" | grep -q '/bidigi-live.js' && echo "BIDIGI live bridge injected"
 
-if ! command -v certbot >/dev/null 2>&1; then
-  apt-get update -qq
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq certbot python3-certbot-apache
-fi
-if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
-  certbot --apache -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect
+# The current public hostname can still be attached to the old ChatGPT Site at Cloudflare.
+# Do not fail deployment because of that routing state.
+echo "=== PUBLIC ROUTE ==="
+CODE="$(curl -sS -o /tmp/bidigi-public-check -w '%{http_code}' --max-time 20 https://$DOMAIN/api/_healthcheck || true)"
+echo "public_health_http=$CODE"
+if grep -q '"service":"bidigi-core"' /tmp/bidigi-public-check 2>/dev/null; then
+  echo "public_route=bidigi-core"
 else
-  certbot --apache -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect || true
+  echo "public_route=pending-cloudflare-switch"
 fi
-apache2ctl configtest
-systemctl reload apache2
-
-echo "=== HEALTH ==="
-curl -fsS "https://$DOMAIN/api/_healthcheck"; echo
-echo "=== EGRESS ==="
-curl -fsS "https://$DOMAIN/api/_egress"; echo
-echo "=== STOREFRONT ==="
-curl -fsS "https://$DOMAIN/" | grep -q 'BIDIGI' && echo "BIDIGI storefront OK"
-curl -fsS "https://$DOMAIN/" | grep -q '/bidigi-live.js' && echo "BIDIGI live bridge injected"
