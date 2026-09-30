@@ -49,16 +49,18 @@ jobs:
           set -euo pipefail
           sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "chmod +x /tmp/bidigi-core-src/deploy_vps.sh && /tmp/bidigi-core-src/deploy_vps.sh"
 
-      - name: Verify BIDIGI
+      - name: Verify BIDIGI origin and whitelisted egress
         shell: bash
         run: |
           set -euo pipefail
-          HEALTH="$(curl -fsS --max-time 30 https://bidigi.nadmo.id/api/_healthcheck)"
-          EGRESS="$(curl -fsS --max-time 30 https://bidigi.nadmo.id/api/_egress)"
-          PAGE="$(curl -fsS --max-time 30 https://bidigi.nadmo.id/)"
-          echo "$HEALTH"
-          echo "$EGRESS"
-          echo "$HEALTH" | grep -q '"service":"bidigi-core"'
-          echo "$EGRESS" | grep -q '"outbound_ipv4":"151.243.222.93"'
-          echo "$PAGE" | grep -q 'BIDIGI'
-          echo "$PAGE" | grep -q '/bidigi-live.js'
+          sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" '
+            HEALTH="$(curl -fsS http://127.0.0.1:8792/api/_healthcheck)"
+            EGRESS="$(curl -fsS http://127.0.0.1:8792/api/_egress)"
+            PAGE="$(curl -fsS -H "Host: bidigi.nadmo.id" http://127.0.0.1/)"
+            echo "$HEALTH"
+            echo "$EGRESS"
+            echo "$HEALTH" | grep -q "\"service\":\"bidigi-core\""
+            echo "$EGRESS" | grep -q "\"outbound_ipv4\":\"151.243.222.93\""
+            echo "$PAGE" | grep -q "BIDIGI"
+            echo "$PAGE" | grep -q "/bidigi-live.js"
+          '
