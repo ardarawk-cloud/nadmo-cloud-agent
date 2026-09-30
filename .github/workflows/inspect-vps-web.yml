@@ -33,6 +33,13 @@ jobs:
             systemctl is-active caddy 2>/dev/null || true
             echo "=== PROCESSES ==="
             ps -ef | grep -E "apache2|httpd|nginx|caddy|python.*8791" | grep -v grep || true
+            echo "=== APACHE SITES ==="
+            ls -la /etc/apache2/sites-enabled 2>/dev/null || true
+            for f in /etc/apache2/sites-enabled/*.conf; do echo "--- $f"; sed -n "1,220p" "$f"; done 2>/dev/null || true
+            echo "=== DOCROOTS ==="
+            find /var/www -maxdepth 3 -type f -printf "%p %s bytes\n" 2>/dev/null | head -200 || true
+            echo "=== BIDIGI ==="
+            grep -Ril "bidigi" /etc/apache2 /var/www /opt/nadmo 2>/dev/null | head -100 || true
             echo "=== IPV6 ==="
             ip -6 addr show scope global || true
           '
