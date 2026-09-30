@@ -1,0 +1,7 @@
+services:
+  roamink-payment-relay:
+    build: .
+    container_name: nadmo-roamink-payment-relay
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8791:8791"
