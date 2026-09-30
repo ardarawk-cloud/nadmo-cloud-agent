@@ -45,7 +45,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          echo "=== PUBLIC HTTP ==="
+          echo "=== DNS ==="\n          getent ahostsv4 relay.nadmo.id | head -3 || true\n          getent ahostsv4 bidigi.nadmo.id | head -3 || true\n          echo "=== PUBLIC HTTP ==="
           curl -sS -i --max-time 20 http://bidigi.nadmo.id/api/_healthcheck | head -50
           echo "=== PUBLIC HTTPS ==="
           curl -sS -i --max-time 20 https://bidigi.nadmo.id/api/_healthcheck | head -50
