@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VPS_HOST: 151.243.222.93
-      VPS_PORT: "34567"
+      VPS_PORT: ${{ secrets.NADMO_VPS_PORT }}
       VPS_USER: root
 
     steps:
@@ -39,6 +39,7 @@ jobs:
           VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
         run: |
           set -euo pipefail
+          test -n "$VPS_PORT"
           mkdir -p ~/.ssh
           ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
           if [ -n "$VPS_KEY" ]; then
