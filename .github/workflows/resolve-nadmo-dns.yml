@@ -15,4 +15,4 @@ jobs:
           echo "bidigi"
           getent ahostsv4 bidigi.nadmo.id | head -3 || true
           echo "agent"
-          getent ahostsv4 agent.nadmo.id | head -3 || true
+          getent ahostsv4 agent.nadmo.id | head -3 || true\n          getent ahostsv6 agent.nadmo.id | head -3 || true\n          echo "relay-v6"\n          getent ahostsv6 relay.nadmo.id | head -3 || true
