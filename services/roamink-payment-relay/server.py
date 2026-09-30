@@ -110,7 +110,10 @@ class Handler(BaseHTTPRequestHandler):
             return send_json(self, {"ok": False, "error": "MISSING_DIGIFLAZZ_AUTH"}, 400)
 
         if path == "/digiflazz/price-list":
-            if payload.get("cmd") != "prepaid" or payload.get("brand") != "eSIM":
+            if payload.get("cmd") != "prepaid":
+                return send_json(self, {"ok": False, "error": "DIGIFLAZZ_CATALOG_SCOPE_DENIED"}, 403)
+            requested_brand = str(payload.get("brand") or "").strip().lower()
+            if requested_brand not in ("", "esim"):
                 return send_json(self, {"ok": False, "error": "DIGIFLAZZ_CATALOG_SCOPE_DENIED"}, 403)
         elif path == "/digiflazz/transaction":
             if not payload.get("buyer_sku_code") or not payload.get("ref_id"):
