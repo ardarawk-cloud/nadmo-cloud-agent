@@ -25,15 +25,25 @@ jobs:
           test -n "$VPS_PORT"
           mkdir -p ~/.ssh
           ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
-          if false; then
-            printf '%s\n' "$VPS_KEY" > ~/.ssh/id_ed25519
+
+          if [ -n "${VPS_KEY:-}" ]; then
+            printf '%s\n' "$VPS_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
             chmod 600 ~/.ssh/id_ed25519
-            echo "AUTH_MODE=key" >> "$GITHUB_ENV"
-          else
+            if ssh -o BatchMode=yes -o IdentitiesOnly=yes -i ~/.ssh/id_ed25519 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" true; then
+              echo "AUTH_MODE=key" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          fi
+
+          if [ -n "${VPS_PASSWORD:-}" ]; then
             sudo apt-get update -qq
             sudo apt-get install -y -qq sshpass
             echo "AUTH_MODE=password" >> "$GITHUB_ENV"
+            exit 0
           fi
+
+          echo "No working VPS credential is configured" >&2
+          exit 1
 
       - name: Verify public outbound IPv4
         shell: bash
@@ -43,7 +53,7 @@ jobs:
           set -euo pipefail
           CMD='IP=$(curl -4 --fail --silent --show-error --max-time 20 https://api.ipify.org); echo "OUTBOUND_IPV4=$IP"; test -n "$IP"'
           if [ "$AUTH_MODE" = "key" ]; then
-            ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "$CMD"
+            ssh -o BatchMode=yes -o IdentitiesOnly=yes -i ~/.ssh/id_ed25519 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "$CMD"
           else
             sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "$CMD"
           fi
