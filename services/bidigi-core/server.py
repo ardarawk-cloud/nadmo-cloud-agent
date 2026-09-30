@@ -130,7 +130,7 @@ def digi_webhook_valid(raw,got):
     return hmac.compare_digest(calc,got)
 def fulfill(ref):
     r=order(ref)
-    if not r or r["payment_status"]!="paid" or r["supplier_status"] in ("pending","success"):return
+    if not r or r["payment_status"]!="paid" or r["supplier_status"]=="success":return
     upd(ref,supplier_status="submitting",status="processing"); r=order(ref)
     try:s,d=dtrx(r,"pay-pasca" if r["kind"]=="postpaid" else None)
     except Exception as e:upd(ref,supplier_status="error",supplier_message=str(e),status="supplier_failed");return
@@ -269,11 +269,15 @@ class H(BaseHTTPRequestHandler):
         return self.out({"ok":False,"error":"NOT_FOUND"},404)
 
 def loop():
-    time.sleep(5)
+    time.sleep(5); next_sync=0
     while True:
         try:
-            if digi_ok():print("sync",sync_products(),flush=True)
-        except Exception as e:print("sync error",repr(e),flush=True)
-        time.sleep(SYNC)
+            if digi_ok() and time.time()>=next_sync:
+                print("sync",sync_products(),flush=True); next_sync=time.time()+SYNC
+            if digi_ok():
+                with LOCK,conn() as c: refs=[x["ref_id"] for x in c.execute("SELECT ref_id FROM orders WHERE payment_status='paid' AND supplier_status='pending' ORDER BY updated_at LIMIT 50").fetchall()]
+                for ref in refs: fulfill(ref)
+        except Exception as e: print("background error",repr(e),flush=True)
+        time.sleep(30)
 if __name__=="__main__":
     init();threading.Thread(target=loop,daemon=True).start();print("BIDIGI core",PORT,"Digiflazz",digi_ok(),"iPaymu",pay_ok(),flush=True);ThreadingHTTPServer((HOST,PORT),H).serve_forever()
