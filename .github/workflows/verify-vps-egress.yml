@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VPS_HOST: 151.243.222.93
-      VPS_PORT: ${{ secrets.NADMO_VPS_PORT }}
+      VPS_PORT: "45678"
       VPS_USER: root
     steps:
       - name: Configure SSH
