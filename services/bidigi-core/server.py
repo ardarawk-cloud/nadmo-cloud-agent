@@ -62,7 +62,7 @@ def sync_products():
     for kind,cmd in (("prepaid","prepaid"),("postpaid","pasca")):
         s,d=req_json(BASE+"/price-list",{"cmd":cmd,"username":E("DIGIFLAZZ_USERNAME"),"sign":dsign("pricelist")})
         rows=d.get("data") if isinstance(d,dict) else None
-        if s>=400 or not isinstance(rows,list): raise RuntimeError("PRICE_LIST_FAILED")
+        if s>=400 or not isinstance(rows,list): raise RuntimeError("PRICE_LIST_FAILED:"+json.dumps(d,ensure_ascii=False,separators=(",",":"))[:1200])
         seen=[]
         with LOCK,conn() as c:
             for x in rows:
