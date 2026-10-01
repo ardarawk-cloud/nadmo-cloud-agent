@@ -117,3 +117,7 @@ if grep -q '"service":"bidigi-core"' /tmp/bidigi-public-check 2>/dev/null; then
 else
   echo "public_route=pending-cloudflare-switch"
 fi
+
+
+echo "=== BIDIGI RECENT SERVICE LOG ==="
+journalctl -u nadmo-bidigi-core --since "15 minutes ago" --no-pager | tail -80 || true
