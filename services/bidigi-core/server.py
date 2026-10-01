@@ -196,8 +196,14 @@ class H(BaseHTTPRequestHandler):
                 return self.out({"ok":True,"outbound_ipv4":ip})
             except:return self.out({"ok":False,"error":"EGRESS_LOOKUP_FAILED"},502)
         if path in ("/api/_healthcheck","/api/status"):
-            with LOCK,conn() as c: pc=c.execute("SELECT COUNT(*) c FROM products WHERE buyer_active=1 AND seller_active=1").fetchone()["c"];oc=c.execute("SELECT COUNT(*) c FROM orders").fetchone()["c"]
-            return self.out({"ok":True,"service":"bidigi-core","digiflazz":{"configured":digi_ok(),"testing":E("DIGIFLAZZ_TESTING","true").lower() in ("1","true","yes","on"),"products":pc,"last_sync":meta("last_sync")},"payment":{"provider":"ipaymu","configured":pay_ok(),"environment":E("IPAYMU_ENV","sandbox")},"pricing":{"flat_markup":MARKUP,"percent_markup":PCT},"orders":oc})
+            with LOCK,conn() as c:
+                pc=c.execute("SELECT COUNT(*) c FROM products WHERE buyer_active=1 AND seller_active=1").fetchone()["c"]
+                prepaid=c.execute("SELECT COUNT(*) c FROM products WHERE kind='prepaid' AND buyer_active=1 AND seller_active=1").fetchone()["c"]
+                postpaid=c.execute("SELECT COUNT(*) c FROM products WHERE kind='postpaid' AND buyer_active=1 AND seller_active=1").fetchone()["c"]
+                esim=c.execute("SELECT COUNT(*) c FROM products WHERE ui_category='eSIM' AND buyer_active=1 AND seller_active=1").fetchone()["c"]
+                activation=c.execute("SELECT COUNT(*) c FROM products WHERE ui_category='Aktivasi Perdana' AND buyer_active=1 AND seller_active=1").fetchone()["c"]
+                oc=c.execute("SELECT COUNT(*) c FROM orders").fetchone()["c"]
+            return self.out({"ok":True,"service":"bidigi-core","digiflazz":{"configured":digi_ok(),"testing":E("DIGIFLAZZ_TESTING","true").lower() in ("1","true","yes","on"),"products":pc,"prepaid":prepaid,"postpaid":postpaid,"esim":esim,"aktivasi_perdana":activation,"last_sync":meta("last_sync"),"last_sync_prepaid":meta("last_sync_prepaid"),"last_sync_postpaid":meta("last_sync_postpaid")},"payment":{"provider":"ipaymu","configured":pay_ok(),"environment":E("IPAYMU_ENV","sandbox")},"pricing":{"flat_markup":MARKUP,"percent_markup":PCT},"orders":oc})
         if path=="/api/products":
             sql="SELECT kind,sku,product_name,category,ui_category,brand,type,description,cost,admin,commission,sell_price FROM products WHERE buyer_active=1 AND seller_active=1";a=[]
             cat=(q.get("category",[""])[0] or "").strip(); search=(q.get("q",[""])[0] or "").strip()
