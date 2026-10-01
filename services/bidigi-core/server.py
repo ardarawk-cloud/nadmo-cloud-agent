@@ -47,12 +47,20 @@ def req_json(url,payload,headers=None):
     return s,d
 def dsign(x): return hashlib.md5((E("DIGIFLAZZ_USERNAME")+E("DIGIFLAZZ_API_KEY")+x).encode()).hexdigest()
 def category(kind,cat,brand,typ,name):
+    import re
     t=" ".join([cat,brand,typ,name]).lower()
     if kind=="postpaid": return "Tagihan"
     if "esim" in t or "e-sim" in t: return "eSIM"
+    if "aktivasi perdana" in t: return "Aktivasi Perdana"
+    if "aktivasi voucher" in t: return "Aktivasi Voucher"
+    if "masa aktif" in t: return "Masa Aktif"
+    if "paket sms" in t or "telpon" in t or "telepon" in t: return "Paket SMS & Telpon"
+    if cat.lower()=="tv": return "TV"
+    if cat.lower()=="voucher": return "Voucher"
+    if cat.lower()=="gas": return "Gas"
     if "game" in t: return "Top Up Game"
     if "pln" in t or "listrik" in t: return "PLN"
-    if any(x in t for x in ("e-money","emoney","e-wallet","ewallet","dana","ovo","gopay","shopeepay","linkaja")): return "E-Wallet"
+    if any(x in t for x in ("e-money","emoney","e-wallet","ewallet","gopay","shopeepay","linkaja")) or re.search(r"\\bdana\\b|\\bovo\\b",t): return "E-Wallet"
     if "data" in t or "internet" in t: return "Paket Data"
     if "pulsa" in t or "reload" in t: return "Pulsa"
     return cat or "Lainnya"
