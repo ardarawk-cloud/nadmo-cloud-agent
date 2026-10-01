@@ -29,7 +29,7 @@ def init():
         CREATE TABLE IF NOT EXISTS orders(ref_id TEXT PRIMARY KEY,kind TEXT,sku TEXT,product_name TEXT,customer_no TEXT,buyer_name TEXT DEFAULT '',buyer_phone TEXT DEFAULT '',buyer_email TEXT DEFAULT '',cost INTEGER DEFAULT 0,sell_price INTEGER DEFAULT 0,payment_status TEXT DEFAULT 'unpaid',payment_provider TEXT DEFAULT '',payment_ref TEXT DEFAULT '',payment_url TEXT DEFAULT '',supplier_status TEXT DEFAULT 'not_started',supplier_rc TEXT DEFAULT '',supplier_message TEXT DEFAULT '',sn TEXT DEFAULT '',status TEXT DEFAULT 'created',raw_json TEXT DEFAULT '{}',created_at TEXT,updated_at TEXT);
         CREATE TABLE IF NOT EXISTS callbacks(provider TEXT,event_id TEXT,payload_json TEXT,created_at TEXT,PRIMARY KEY(provider,event_id));
         CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT,updated_at TEXT);
-        """); c.commit()
+        """); c.execute("UPDATE products SET ui_category='Aktivasi Perdana' WHERE category='Aktivasi Perdana'"); c.commit()
 def meta(k,v=None):
     with LOCK,conn() as c:
         if v is None:
