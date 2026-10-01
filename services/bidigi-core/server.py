@@ -79,10 +79,14 @@ def sync_products(kind=None):
     if wait>0:
         return {"ok":False,"error":"PRICELIST_LOCAL_COOLDOWN","retry_after":wait}
     if kind not in ("prepaid","postpaid"):
+        try: postpaid_retry_at=int(meta("postpaid_retry_at") or "0")
+        except: postpaid_retry_at=0
         if product_count("prepaid")==0:
             kind="prepaid"
-        elif product_count("postpaid")==0:
+        elif product_count("postpaid")==0 and now_ts>=postpaid_retry_at:
             kind="postpaid"
+        elif product_count("postpaid")==0:
+            kind="prepaid"
         else:
             kind="postpaid" if meta("last_pricelist_kind")=="prepaid" else "prepaid"
     cmd="prepaid" if kind=="prepaid" else "pasca"
@@ -92,6 +96,10 @@ def sync_products(kind=None):
     if s>=400 or not isinstance(rows,list):
         rc=str((d.get("data") or {}).get("rc") or "") if isinstance(d,dict) else ""
         msg=str((d.get("data") or {}).get("message") or d)[:500] if isinstance(d,dict) else str(d)[:500]
+        if kind=="postpaid" and isinstance(d,dict) and d.get("data") is None:
+            retry=21600
+            meta("postpaid_retry_at",str(now_ts+retry))
+            return {"ok":False,"error":"POSTPAID_NOT_CONFIGURED","kind":kind,"message":"No postpaid products configured in Digiflazz Buyer price list","retry_after":retry}
         return {"ok":False,"error":"PRICELIST_UPSTREAM","kind":kind,"rc":rc,"message":msg,"retry_after":300 if rc=="83" else 0}
     seen=[]
     with LOCK,conn() as c:
@@ -106,6 +114,7 @@ def sync_products(kind=None):
             (kind,sku,name,cat,category(kind,cat,brand,typ,name),brand,typ,desc,cost,int(float(x.get("admin") or 0)),int(float(x.get("commission") or 0)),sell,1 if x.get("buyer_product_status",True) else 0,1 if x.get("seller_product_status",True) else 0,json.dumps(x,ensure_ascii=False,separators=(",",":")),now()))
         c.commit()
     stamp=now(); meta("last_sync_"+kind,stamp); meta("last_sync",stamp)
+    if kind=="postpaid": meta("postpaid_retry_at","0")
     return {"ok":True,"kind":kind,"count":len(seen),"next_kind":"postpaid" if kind=="prepaid" else "prepaid"}
 def balance():
     if not digi_ok(): raise RuntimeError("DIGIFLAZZ_NOT_CONFIGURED")
@@ -313,7 +322,10 @@ def loop():
             if digi_ok():
                 try:last_attempt=int(meta("last_pricelist_attempt") or "0")
                 except:last_attempt=0
-                needed_delay=305 if product_count("prepaid")==0 or product_count("postpaid")==0 else max(305,SYNC)
+                try: postpaid_retry_at=int(meta("postpaid_retry_at") or "0")
+                except: postpaid_retry_at=0
+                need_missing=product_count("prepaid")==0 or (product_count("postpaid")==0 and time.time()>=postpaid_retry_at)
+                needed_delay=305 if need_missing else max(305,SYNC)
                 if time.time()-last_attempt>=needed_delay:
                     print("sync",sync_products(),flush=True)
                 with LOCK,conn() as c: refs=[x["ref_id"] for x in c.execute("SELECT ref_id FROM orders WHERE payment_status='paid' AND supplier_status='pending' ORDER BY updated_at LIMIT 50").fetchall()]
