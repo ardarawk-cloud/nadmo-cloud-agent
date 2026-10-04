@@ -3,271 +3,284 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#05090f">
-<title>NADMO Virtual Office</title>
-<meta name="description" content="NADMO Virtual Office — interactive owner command center">
+<meta name="theme-color" content="#050a10">
+<title>NADMO Virtual Office V3</title>
 <style>
 :root{
-  --bg:#05090f;--panel:#08111b;--panel2:#0b1723;--line:rgba(118,217,255,.18);
-  --text:#eaf8ff;--muted:#79a2b7;--cyan:#55e7ff;--green:#50ffb4;--yellow:#ffd657;
-  --orange:#ff8e4f;--pink:#ff48df;--blue:#4f83ff;--red:#ff5f72;
+  --bg:#03070b;--panel:#07111a;--panel2:#0a1722;--line:rgba(110,220,255,.18);
+  --text:#eaf8ff;--muted:#79a1b4;--cyan:#52e6ff;--green:#54ffb1;--yellow:#ffd85a;
+  --orange:#ff9250;--pink:#ff4ddd;--blue:#4f86ff;--red:#ff6377;
 }
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%;background:#03070b;color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
-body{overflow-x:hidden;background:
-  radial-gradient(circle at 50% -10%,rgba(31,102,154,.18),transparent 35%),
-  linear-gradient(#04090f,#03070b)}
-button,input{font:inherit}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+body{background:
+ radial-gradient(circle at 50% -10%,rgba(39,111,157,.18),transparent 35%),
+ linear-gradient(#04090f,#02060a)}
+button,input,select{font:inherit}
+button{cursor:pointer}
 .app{min-height:100vh;display:grid;grid-template-rows:58px 1fr}
-.hud{
-  position:sticky;top:0;z-index:50;height:58px;display:flex;align-items:center;gap:14px;
-  padding:0 16px;border-bottom:1px solid var(--line);
-  background:rgba(4,10,16,.92);backdrop-filter:blur(15px)
+.top{
+ position:sticky;top:0;z-index:50;height:58px;display:flex;align-items:center;gap:12px;padding:0 14px;
+ border-bottom:1px solid var(--line);background:rgba(4,10,16,.94);backdrop-filter:blur(15px)
 }
-.logo{width:34px;height:34px;border:1px solid rgba(85,231,255,.35);border-radius:8px;display:grid;place-items:center;
-  color:var(--cyan);font-weight:900;background:linear-gradient(145deg,rgba(85,231,255,.12),rgba(255,255,255,.02))}
-.brand{min-width:180px}.brand b{display:block;font-size:12px;letter-spacing:.16em}.brand small{font-size:8px;color:var(--muted);letter-spacing:.13em}
-.hudline{width:1px;height:28px;background:var(--line)}
-.hudchips{display:flex;gap:7px;flex:1;overflow:auto;scrollbar-width:none}
-.hudchips::-webkit-scrollbar{display:none}
-.chip{min-width:96px;height:35px;border:1px solid var(--line);border-radius:7px;padding:6px 9px;background:rgba(255,255,255,.025);white-space:nowrap}
-.chip span{display:block;font-size:7px;color:var(--muted);letter-spacing:.13em;text-transform:uppercase}
-.chip b{display:block;font-size:11px;margin-top:2px}
-.chip.warn{border-color:rgba(255,214,87,.28)} .chip.warn b{color:var(--yellow)}
-.clock{margin-left:auto;font-size:11px;font-variant-numeric:tabular-nums;color:#bfeeff}
-.shell{display:grid;grid-template-columns:210px minmax(0,1fr);min-height:calc(100vh - 58px)}
-.sidebar{border-right:1px solid var(--line);padding:13px;background:linear-gradient(180deg,rgba(7,16,25,.93),rgba(4,9,14,.94))}
-.side-title{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);margin:4px 0 10px}
-.side-card{border:1px solid var(--line);border-radius:9px;background:rgba(255,255,255,.025);padding:9px;margin-bottom:8px}
-.side-card b{display:block;font-size:10px}.side-card span{display:block;font-size:8px;color:var(--muted);margin-top:3px;line-height:1.4}
-.bar{height:4px;background:rgba(255,255,255,.06);border-radius:999px;margin-top:8px;overflow:hidden}
-.bar i{display:block;height:100%;width:65%;background:linear-gradient(90deg,var(--cyan),var(--green));box-shadow:0 0 10px var(--cyan)}
-.queue{display:flex;flex-direction:column;gap:6px}
-.qitem{display:flex;align-items:center;gap:7px;padding:7px;border:1px solid rgba(118,217,255,.1);border-radius:7px;background:rgba(255,255,255,.018)}
-.qdot{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
-.qitem div{min-width:0}.qitem b{font-size:8px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.qitem small{font-size:7px;color:var(--muted)}
-.main{min-width:0;padding:12px}
+.logo{width:34px;height:34px;border-radius:8px;border:1px solid rgba(82,230,255,.35);display:grid;place-items:center;color:var(--cyan);font-weight:900;background:rgba(82,230,255,.07)}
+.brand{min-width:185px}.brand b{display:block;font-size:12px;letter-spacing:.15em}.brand small{font-size:8px;color:var(--muted);letter-spacing:.12em}
+.live-strip{display:flex;gap:7px;flex:1;overflow:auto;scrollbar-width:none}.live-strip::-webkit-scrollbar{display:none}
+.livebox{height:35px;min-width:112px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:rgba(255,255,255,.022)}
+.livebox span{display:block;font-size:6.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+.livebox b{display:block;font-size:10px;margin-top:2px;white-space:nowrap}
+.livebox.ok b{color:var(--green)}.livebox.warn b{color:var(--yellow)}
+.clock{font-size:10px;color:#bfefff;font-variant-numeric:tabular-nums}
+.shell{display:grid;grid-template-columns:210px minmax(0,1fr) 270px;min-height:calc(100vh - 58px)}
+.side,.console{background:linear-gradient(180deg,rgba(7,16,24,.96),rgba(4,9,14,.96))}
+.side{border-right:1px solid var(--line);padding:12px}
+.console{border-left:1px solid var(--line);padding:12px;overflow:auto}
+.kicker{font-size:7px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);margin:4px 0 9px}
+.card{border:1px solid var(--line);border-radius:9px;background:rgba(255,255,255,.022);padding:9px;margin-bottom:8px}
+.card b{display:block;font-size:9px}.card span{display:block;font-size:7px;color:var(--muted);margin-top:3px;line-height:1.45}
+.agent-list{display:flex;flex-direction:column;gap:6px}
+.agentrow{display:flex;align-items:center;gap:8px;padding:8px;border:1px solid rgba(110,220,255,.1);border-radius:8px;background:rgba(255,255,255,.018)}
+.avmini{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--cyan);background:#0c1a26;font-size:7px;font-weight:900;flex:none}
+.agentrow .meta{min-width:0;flex:1}.agentrow b{font-size:8px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.agentrow small{font-size:6.5px;color:var(--muted)}
+.state{font-size:6px!important;letter-spacing:.08em;padding:4px 5px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
+.state.working{color:var(--green);border-color:rgba(84,255,177,.28)}.state.waiting{color:var(--yellow);border-color:rgba(255,216,90,.28)}
+.main{min-width:0;padding:10px}
 .stage{
-  position:relative;min-height:720px;border:1px solid rgba(118,217,255,.16);border-radius:13px;overflow:hidden;
-  background:
-    radial-gradient(circle at 70% 15%,rgba(85,231,255,.08),transparent 18%),
-    radial-gradient(circle at 18% 76%,rgba(255,72,223,.08),transparent 18%),
-    #050c13;
-  box-shadow:0 28px 90px rgba(0,0,0,.35),inset 0 0 80px rgba(20,95,135,.035)
+ position:relative;min-height:720px;border:1px solid rgba(110,220,255,.15);border-radius:13px;overflow:hidden;
+ background:#050c13;box-shadow:0 28px 90px rgba(0,0,0,.38),inset 0 0 90px rgba(28,91,127,.035)
 }
-.stage:before{
-  content:"";position:absolute;inset:0;
-  background-image:linear-gradient(rgba(85,231,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(85,231,255,.055) 1px,transparent 1px);
-  background-size:33px 33px;pointer-events:none
+.stage:before{content:"";position:absolute;inset:0;background-image:
+ linear-gradient(rgba(82,230,255,.05) 1px,transparent 1px),
+ linear-gradient(90deg,rgba(82,230,255,.05) 1px,transparent 1px);background-size:32px 32px;pointer-events:none}
+.stagehead{position:absolute;left:12px;right:12px;top:9px;z-index:7;display:flex;justify-content:space-between;align-items:center}
+.stagehead b{font-size:8px;letter-spacing:.15em}.badge{font-size:6px;letter-spacing:.1em;padding:5px 7px;border:1px solid var(--line);border-radius:5px;color:var(--muted);background:rgba(4,10,16,.82)}
+.office{position:absolute;left:2.5%;right:2.5%;top:6.5%;bottom:5.5%}
+.room{
+ position:absolute;border:2px solid currentColor;background:rgba(6,14,22,.9);
+ box-shadow:0 0 18px color-mix(in srgb,currentColor 24%,transparent),inset 0 0 28px color-mix(in srgb,currentColor 7%,transparent);
+ overflow:hidden;clip-path:polygon(0 0,100% 0,100% 92%,92% 100%,0 100%);
+ transition:.18s ease
 }
-.scene-top{position:absolute;left:12px;right:12px;top:10px;z-index:9;display:flex;justify-content:space-between;align-items:center;gap:10px}
-.scene-title{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#bcefff}
-.scene-badges{display:flex;gap:6px}.badge{font-size:7px;letter-spacing:.1em;padding:5px 7px;border:1px solid var(--line);border-radius:5px;color:var(--muted);background:rgba(5,12,19,.8)}
-.badge.demo{color:var(--yellow);border-color:rgba(255,214,87,.28)}
-.office{
-  position:absolute;left:2.5%;right:2.5%;top:7.5%;bottom:6.5%;
-  transform:perspective(1100px) rotateX(2deg);
-}
-.zone{
-  position:absolute;border:2px solid currentColor;background:rgba(7,15,23,.88);
-  box-shadow:0 0 18px color-mix(in srgb,currentColor 24%,transparent), inset 0 0 28px color-mix(in srgb,currentColor 8%,transparent);
-  overflow:hidden;cursor:pointer;transition:.18s ease;clip-path:polygon(0 0,100% 0,100% 92%,92% 100%,0 100%)
-}
-.zone:hover,.zone.active{filter:brightness(1.15);transform:translateY(-2px);z-index:5;box-shadow:0 0 30px color-mix(in srgb,currentColor 36%,transparent),inset 0 0 40px color-mix(in srgb,currentColor 12%,transparent)}
-.zone:before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,color-mix(in srgb,currentColor 13%,transparent),transparent 45%);pointer-events:none}
-.zhead{position:absolute;left:10px;top:8px;font-size:8px;font-weight:900;letter-spacing:.12em;color:#fff;text-shadow:0 0 10px currentColor}
-.zsub{position:absolute;left:10px;top:22px;font-size:6px;letter-spacing:.08em;color:color-mix(in srgb,currentColor 78%,white)}
-.roomtag{position:absolute;right:9px;top:8px;font-size:6px;letter-spacing:.12em;color:currentColor}
-.owner{color:var(--yellow);left:59%;top:4%;width:38%;height:25%}
-.studio{color:var(--orange);left:2%;top:6%;width:52%;height:22%}
-.media{color:var(--pink);left:2%;top:31%;width:52%;height:30%}
+.room:hover,.room.focus{filter:brightness(1.15);z-index:3;box-shadow:0 0 30px color-mix(in srgb,currentColor 34%,transparent),inset 0 0 40px color-mix(in srgb,currentColor 11%,transparent)}
+.room .title{position:absolute;left:9px;top:7px;font-size:7.5px;font-weight:900;letter-spacing:.12em;color:#fff}
+.room .sub{position:absolute;left:9px;top:20px;font-size:5.5px;letter-spacing:.08em;color:color-mix(in srgb,currentColor 78%,white)}
+.owner{color:var(--yellow);left:58%;top:3%;width:39%;height:26%}
+.studio{color:var(--orange);left:2%;top:4%;width:52%;height:23%}
+.media{color:var(--pink);left:2%;top:30%;width:52%;height:31%}
+.ai{color:var(--green);left:58%;top:32%;width:39%;height:29%}
 .music{color:var(--blue);left:2%;top:64%;width:52%;height:31%}
-.ai{color:var(--green);left:59%;top:32%;width:38%;height:28%}
-.tech{color:var(--cyan);left:59%;top:63%;width:38%;height:32%}
-.bridge{position:absolute;left:55.5%;top:5%;bottom:5%;width:1.4%;border-left:1px solid rgba(85,231,255,.12);border-right:1px solid rgba(85,231,255,.12);background:rgba(255,255,255,.018)}
-.bridge:after{content:"NADMO CORE";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-90deg);white-space:nowrap;font-size:6px;letter-spacing:.35em;color:rgba(160,215,235,.25)}
-.ws{position:absolute;width:74px;height:38px;border:1px solid color-mix(in srgb,currentColor 70%,transparent);border-radius:4px;background:rgba(4,9,14,.72);box-shadow:inset 0 0 11px color-mix(in srgb,currentColor 12%,transparent)}
-.ws:before{content:"";position:absolute;left:8px;right:8px;bottom:7px;height:8px;border:1px solid color-mix(in srgb,currentColor 42%,transparent);background:rgba(255,255,255,.025)}
-.ws .avatar{position:absolute;left:50%;top:-11px;transform:translateX(-50%);width:20px;height:20px;border-radius:50%;border:1px solid currentColor;background:#0c1a26;display:grid;place-items:center;font-size:6px;font-weight:900;color:#fff;box-shadow:0 0 12px currentColor}
-.ws .label{position:absolute;left:50%;top:27px;transform:translateX(-50%);font-size:5.5px;white-space:nowrap;color:#fff;letter-spacing:.05em;background:rgba(2,7,11,.86);padding:2px 4px;border-radius:2px;border:1px solid color-mix(in srgb,currentColor 45%,transparent)}
-.desk1{left:10%;top:46%}.desk2{left:36%;top:46%}.desk3{left:66%;top:46%}
-.media .desk1{top:35%}.media .desk2{top:35%}.media .desk3{top:35%}.media .desk4{left:23%;top:68%}.media .desk5{left:53%;top:68%}
-.music .desk1{top:38%}.music .desk2{top:38%}.music .desk3{top:38%}
-.owner .desk1{left:24%;top:45%}.owner .desk2{left:58%;top:45%}
-.ai .desk1{top:38%}.ai .desk2{top:38%;left:41%}.ai .desk3{top:38%;left:69%}
-.tech .desk1{top:40%}.tech .desk2{top:40%;left:41%}.tech .desk3{top:40%;left:69%}
-.orb{position:absolute;width:24px;height:24px;border:2px solid currentColor;border-radius:50%;box-shadow:0 0 22px currentColor,inset 0 0 15px currentColor;opacity:.75}
-.orb:after{content:"";position:absolute;inset:5px;border:1px solid currentColor;border-radius:50%}
-.o1{color:var(--pink);left:56%;top:47%}.o2{color:var(--cyan);left:55.5%;top:73%}.o3{color:var(--yellow);left:93%;top:17%}
-.pulse{animation:pulse 1.8s ease-in-out infinite}@keyframes pulse{50%{opacity:.38;transform:scale(.88)}}
-.floorlabel{position:absolute;font-size:6px;letter-spacing:.25em;color:rgba(203,239,255,.26);text-transform:uppercase}
-.fl1{left:7%;bottom:2%}.fl2{right:7%;bottom:2%}
-.detail{
-  position:absolute;z-index:20;right:14px;top:54px;width:285px;max-height:calc(100% - 72px);overflow:auto;
-  border:1px solid rgba(85,231,255,.24);border-radius:10px;background:rgba(5,13,20,.96);box-shadow:0 18px 60px rgba(0,0,0,.55);
-  transform:translateX(320px);opacity:0;transition:.22s ease;padding:13px
+.tech{color:var(--cyan);left:58%;top:64%;width:39%;height:31%}
+.desk{position:absolute;width:70px;height:34px;border:1px solid color-mix(in srgb,currentColor 70%,transparent);border-radius:4px;background:rgba(2,7,11,.72)}
+.desk:before{content:"";position:absolute;left:8px;right:8px;bottom:6px;height:7px;border:1px solid color-mix(in srgb,currentColor 38%,transparent)}
+.desk label{position:absolute;left:50%;bottom:-13px;transform:translateX(-50%);font-size:5px;color:#fff;white-space:nowrap;background:rgba(2,7,11,.88);padding:2px 3px;border-radius:2px}
+.d1{left:12%;top:45%}.d2{left:40%;top:45%}.d3{left:68%;top:45%}
+.media .d4{left:26%;top:71%}.media .d5{left:55%;top:71%}
+.owner .d1{left:25%;top:48%}.owner .d2{left:60%;top:48%}
+.ai .d1{left:10%;top:46%}.ai .d2{left:40%;top:46%}.ai .d3{left:70%;top:46%}
+.tech .d1{left:10%;top:46%}.tech .d2{left:40%;top:46%}.tech .d3{left:70%;top:46%}
+.actor{
+ position:absolute;z-index:9;width:27px;height:27px;border-radius:50%;display:grid;place-items:center;
+ background:#0c1a26;border:2px solid var(--cyan);color:#fff;font-size:6.5px;font-weight:900;
+ box-shadow:0 0 16px var(--cyan);transition:left 1.15s cubic-bezier(.2,.8,.2,1),top 1.15s cubic-bezier(.2,.8,.2,1),border-color .2s,box-shadow .2s;
+ transform:translate(-50%,-50%)
 }
-.detail.open{transform:translateX(0);opacity:1}
-.close{position:absolute;right:8px;top:8px;width:26px;height:26px;border-radius:6px;border:1px solid var(--line);background:rgba(255,255,255,.025);color:#ccefff;cursor:pointer}
-.dk{font-size:7px;letter-spacing:.16em;color:var(--cyan);text-transform:uppercase}.detail h2{margin:6px 30px 6px 0;font-size:18px;letter-spacing:-.03em}
-.detail p{font-size:9px;line-height:1.5;color:var(--muted);margin:0 0 10px}
-.mini{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}.mini div{border:1px solid var(--line);border-radius:7px;padding:7px;background:rgba(255,255,255,.02)}
-.mini b{display:block;font-size:11px}.mini span{font-size:6px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
-.sec{border-top:1px solid var(--line);padding-top:9px;margin-top:9px}.sec h3{font-size:7px;letter-spacing:.13em;text-transform:uppercase;color:#cbeafa;margin:0 0 7px}
-.lineitem{padding:7px;border:1px solid rgba(118,217,255,.1);border-radius:6px;margin-bottom:5px;background:rgba(255,255,255,.018)}
-.lineitem b{display:block;font-size:8px}.lineitem span{display:block;font-size:7px;color:var(--muted);margin-top:2px}
-.bottomhud{position:absolute;left:14px;right:14px;bottom:10px;z-index:8;height:24px;display:flex;align-items:center;gap:12px;border-top:1px solid rgba(118,217,255,.1);padding-top:7px}
-.legend{display:flex;gap:10px;font-size:6px;letter-spacing:.08em;color:var(--muted)}.legend i{display:inline-block;width:5px;height:5px;border-radius:50%;margin-right:4px}
-.notice{margin-left:auto;font-size:6px;color:#b99f5a;letter-spacing:.07em}
-@media(max-width:1100px){
-  .shell{grid-template-columns:178px minmax(0,1fr)} .sidebar{padding:9px}
-  .stage{min-height:650px}.ws{width:62px}.brand{min-width:150px}.chip{min-width:82px}
-}
-@media(max-width:780px){
-  .shell{grid-template-columns:1fr}.sidebar{display:none}.main{padding:7px}.brand small{display:none}.hudline{display:none}
-  .chip:nth-child(n+4){display:none}.stage{min-height:620px;overflow:auto}.office{min-width:720px;right:auto;width:720px}
-  .scene-top{min-width:690px}.bottomhud{min-width:680px}.detail{position:fixed;top:70px;right:8px;bottom:8px;max-height:none;width:min(330px,calc(100vw - 16px))}
-}
+.actor.idle{animation:bob 2.6s ease-in-out infinite}.actor.working{border-color:var(--green);box-shadow:0 0 20px var(--green)}.actor.waiting{border-color:var(--yellow);box-shadow:0 0 20px var(--yellow)}
+.actor:after{content:attr(data-name);position:absolute;top:30px;left:50%;transform:translateX(-50%);font-size:5.5px;white-space:nowrap;color:#fff;background:rgba(2,7,11,.9);border:1px solid var(--line);border-radius:3px;padding:2px 4px}
+@keyframes bob{50%{transform:translate(-50%,-56%)}}
+.connector{position:absolute;left:55.5%;top:4%;bottom:5%;width:1.5%;border-left:1px solid rgba(82,230,255,.1);border-right:1px solid rgba(82,230,255,.1)}
+.connector:after{content:"NADMO CORE";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-90deg);font-size:5px;letter-spacing:.32em;color:rgba(190,235,250,.22);white-space:nowrap}
+.eventlog{position:absolute;left:12px;bottom:9px;z-index:15;width:58%;max-width:520px;border-top:1px solid rgba(110,220,255,.1);padding-top:6px;font-size:6px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eventlog b{color:#bfefff}
+.form label{display:block;font-size:6.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:8px 0 4px}
+.form input,.form select{width:100%;height:31px;border-radius:7px;border:1px solid var(--line);background:#07121b;color:var(--text);padding:0 8px;outline:none}
+.primary,.secondary{width:100%;height:33px;border-radius:7px;margin-top:8px;border:1px solid var(--line);color:var(--text);background:rgba(82,230,255,.07)}
+.primary{border-color:rgba(82,230,255,.35);color:#dffbff}.primary:hover{background:rgba(82,230,255,.12)}
+.task{padding:8px;border:1px solid rgba(110,220,255,.11);border-radius:8px;background:rgba(255,255,255,.018);margin-bottom:6px}
+.taskhead{display:flex;justify-content:space-between;gap:8px;align-items:center}.task b{font-size:8px}.task small{font-size:6px;color:var(--muted)}
+.progress{height:4px;background:rgba(255,255,255,.06);border-radius:999px;margin:7px 0 5px;overflow:hidden}.progress i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--green));width:0}
+.taskactions{display:flex;gap:5px}.taskactions button{flex:1;height:24px;border-radius:6px;border:1px solid var(--line);background:rgba(255,255,255,.025);color:var(--text);font-size:6px}
+.approval{border-color:rgba(255,216,90,.22)}
+.empty{font-size:7px;color:var(--muted);padding:8px;border:1px dashed rgba(110,220,255,.14);border-radius:7px}
+.live-note{font-size:6.2px;color:#b59d62;line-height:1.5;margin-top:8px}
+@media(max-width:1180px){.shell{grid-template-columns:180px minmax(0,1fr) 240px}.desk{width:58px}.brand{min-width:155px}.livebox{min-width:95px}}
+@media(max-width:900px){.shell{grid-template-columns:1fr}.side,.console{display:none}.main{padding:6px}.stage{min-height:660px;overflow:auto}.office{min-width:760px;width:760px;right:auto}.stagehead{min-width:730px}.eventlog{min-width:520px}.brand small{display:none}.livebox:nth-child(n+4){display:none}}
 </style>
 </head>
 <body>
 <div class="app">
-<header class="hud">
+<header class="top">
   <div class="logo">N</div>
-  <div class="brand"><b>NADMO VIRTUAL OFFICE</b><small>OWNER COMMAND CENTER</small></div>
-  <div class="hudline"></div>
-  <div class="hudchips">
-    <div class="chip"><span>HQ Modules</span><b>6 ROOMS</b></div>
-    <div class="chip"><span>Agents</span><b>LOCAL MAP</b></div>
-    <div class="chip warn"><span>Live Connectors</span><b>OFF</b></div>
-    <div class="chip"><span>Approval</span><b>READY</b></div>
-    <div class="chip"><span>Build</span><b>V2 NEON MAP</b></div>
+  <div class="brand"><b>NADMO VIRTUAL OFFICE</b><small>FUNCTIONAL HQ / V3</small></div>
+  <div class="live-strip">
+    <div class="livebox" id="gitBox"><span>GitHub HQ Repo</span><b id="gitStatus">CONNECTING…</b></div>
+    <div class="livebox"><span>Last Commit</span><b id="gitSha">—</b></div>
+    <div class="livebox"><span>Office State</span><b id="officeState">LOCAL ACTIVE</b></div>
+    <div class="livebox warn"><span>Approval Queue</span><b id="approvalCount">0 WAITING</b></div>
+    <div class="livebox"><span>Browser Storage</span><b id="saveStatus">READY</b></div>
   </div>
   <div class="clock" id="clock">--:--:--</div>
 </header>
 
 <div class="shell">
-<aside class="sidebar">
-  <div class="side-title">Today / Overview</div>
-  <div class="side-card"><b>Virtual HQ Core</b><span>Game-map visual layer active. Live business data has not been connected.</span><div class="bar"><i></i></div></div>
-  <div class="side-title" style="margin-top:15px">Priority Queue</div>
-  <div class="queue">
-    <div class="qitem"><i class="qdot"></i><div><b>Owner Approval Gateway</b><small>ready for integration</small></div></div>
-    <div class="qitem"><i class="qdot"></i><div><b>GitHub + Deploy Status</b><small>next connector</small></div></div>
-    <div class="qitem"><i class="qdot"></i><div><b>Cloudflare / Domain Health</b><small>next connector</small></div></div>
-    <div class="qitem"><i class="qdot"></i><div><b>Agent Runtime Feed</b><small>planned</small></div></div>
-  </div>
-  <div class="side-title" style="margin-top:15px">Rooms</div>
-  <div class="queue" id="roomLinks"></div>
+<aside class="side">
+  <div class="kicker">Agents</div>
+  <div class="agent-list" id="agentList"></div>
+  <div class="kicker" style="margin-top:15px">What is real?</div>
+  <div class="card"><b>GitHub status = LIVE</b><span>Fetched directly from public GitHub API for this HQ repository.</span></div>
+  <div class="card"><b>Office tasks = LOCAL</b><span>Tasks, progress and approvals are functional workflow state stored in this browser.</span></div>
+  <div class="live-note">Tidak ada angka bisnis palsu. Label LIVE hanya dipakai untuk sumber yang benar-benar di-fetch.</div>
 </aside>
 
 <main class="main">
 <section class="stage">
-  <div class="scene-top">
-    <div class="scene-title">NADMO HQ / LEVEL 01 / OPERATIONS FLOOR</div>
-    <div class="scene-badges"><span class="badge demo">VISUAL MODE</span><span class="badge">LOCAL DATA</span></div>
-  </div>
+  <div class="stagehead"><b>NADMO HQ / LEVEL 01 / LIVE OPERATIONS FLOOR</b><span class="badge">CLICK AGENT OR START TASK</span></div>
+  <div class="office" id="office">
+    <div class="connector"></div>
 
-  <div class="office">
-    <div class="bridge"></div>
-
-    <button class="zone studio" data-room="studio">
-      <span class="zhead">NADMO STUDIO</span><span class="zsub">WEB · CLIENT · DESIGN</span><span class="roomtag">S-01</span>
-      <span class="ws desk1"><i class="avatar">WB</i><i class="label">WEB BUILDER</i></span>
-      <span class="ws desk2"><i class="avatar">DS</i><i class="label">DESIGN</i></span>
-      <span class="ws desk3"><i class="avatar">CL</i><i class="label">CLIENT OPS</i></span>
-    </button>
-
-    <button class="zone owner active" data-room="owner">
-      <span class="zhead">OWNER / GENERAL MANAGER</span><span class="zsub">DECISION · APPROVAL · COMMAND</span><span class="roomtag">O-01</span>
-      <span class="ws desk1"><i class="avatar">AR</i><i class="label">OWNER</i></span>
-      <span class="ws desk2"><i class="avatar">AP</i><i class="label">APPROVAL</i></span>
-    </button>
-
-    <button class="zone media" data-room="media">
-      <span class="zhead">CONTENT & MEDIA</span><span class="zsub">PUBLISHING · NIGHTLIFE · MARKETING</span><span class="roomtag">M-01</span>
-      <span class="ws desk1"><i class="avatar">BN</i><i class="label">BALINIGHTLIFE</i></span>
-      <span class="ws desk2"><i class="avatar">AC</i><i class="label">AKU CINTA MALAM</i></span>
-      <span class="ws desk3"><i class="avatar">BW</i><i class="label">WEDDING DJ</i></span>
-      <span class="ws desk4"><i class="avatar">ED</i><i class="label">EDITORIAL</i></span>
-      <span class="ws desk5"><i class="avatar">PB</i><i class="label">PUBLISHER</i></span>
-    </button>
-
-    <button class="zone ai" data-room="ai">
-      <span class="zhead">AI / AGENT LAB</span><span class="zsub">AUTOMATION · AGENTS · ROUTING</span><span class="roomtag">A-01</span>
-      <span class="ws desk1"><i class="avatar">AI</i><i class="label">AI CORE</i></span>
-      <span class="ws desk2"><i class="avatar">SC</i><i class="label">SCOUT</i></span>
-      <span class="ws desk3"><i class="avatar">AU</i><i class="label">AUTOMATION</i></span>
-    </button>
-
-    <button class="zone music" data-room="music">
-      <span class="zhead">MUSIC & CREATIVE</span><span class="zsub">ARTIST · RELEASE · COVER · DJ</span><span class="roomtag">MU-1</span>
-      <span class="ws desk1"><i class="avatar">AM</i><i class="label">ARDA MORON</i></span>
-      <span class="ws desk2"><i class="avatar">KZ</i><i class="label">KAMIKAZE</i></span>
-      <span class="ws desk3"><i class="avatar">RL</i><i class="label">RELEASE OPS</i></span>
-    </button>
-
-    <button class="zone tech" data-room="tech">
-      <span class="zhead">TECH & OPERATIONS</span><span class="zsub">GITHUB · CLOUDFLARE · VPS · QC</span><span class="roomtag">T-01</span>
-      <span class="ws desk1"><i class="avatar">GH</i><i class="label">GITHUB</i></span>
-      <span class="ws desk2"><i class="avatar">CF</i><i class="label">CLOUDFLARE</i></span>
-      <span class="ws desk3"><i class="avatar">QC</i><i class="label">RUNTIME QC</i></span>
-    </button>
-
-    <i class="orb o1 pulse"></i><i class="orb o2 pulse"></i><i class="orb o3 pulse"></i>
-    <span class="floorlabel fl1">NADMO CREATIVE WING</span><span class="floorlabel fl2">NADMO SYSTEMS WING</span>
-  </div>
-
-  <div class="detail open" id="detail">
-    <button class="close" id="close">×</button>
-    <div class="dk" id="dk">O-01 / OWNER</div>
-    <h2 id="dt">Owner / General Manager</h2>
-    <p id="dd">Pusat keputusan dan approval seluruh operasi NADMO.</p>
-    <div class="mini" id="metrics"></div>
-    <div class="sec"><h3>Projects / Functions</h3><div id="projects"></div></div>
-    <div class="sec"><h3>Agents / Systems</h3><div id="agents"></div></div>
-  </div>
-
-  <div class="bottomhud">
-    <div class="legend">
-      <span><i style="background:var(--yellow)"></i>Owner</span>
-      <span><i style="background:var(--pink)"></i>Media</span>
-      <span><i style="background:var(--green)"></i>AI</span>
-      <span><i style="background:var(--cyan)"></i>Tech</span>
+    <div class="room studio" data-room="studio"><span class="title">NADMO STUDIO</span><span class="sub">WEB · CLIENT · DESIGN</span>
+      <span class="desk d1"><label>WEB BUILDER</label></span><span class="desk d2"><label>DESIGN</label></span><span class="desk d3"><label>CLIENT OPS</label></span>
     </div>
-    <div class="notice">NO FAKE REALTIME DATA · CONNECTORS OFF</div>
+    <div class="room owner" data-room="owner"><span class="title">OWNER / GENERAL MANAGER</span><span class="sub">DECISION · APPROVAL · COMMAND</span>
+      <span class="desk d1"><label>OWNER</label></span><span class="desk d2"><label>APPROVAL</label></span>
+    </div>
+    <div class="room media" data-room="media"><span class="title">CONTENT & MEDIA</span><span class="sub">PUBLISHING · NIGHTLIFE · MARKETING</span>
+      <span class="desk d1"><label>BALINIGHTLIFE</label></span><span class="desk d2"><label>AKU CINTA MALAM</label></span><span class="desk d3"><label>WEDDING DJ</label></span>
+      <span class="desk d4"><label>EDITORIAL</label></span><span class="desk d5"><label>PUBLISHER</label></span>
+    </div>
+    <div class="room ai" data-room="ai"><span class="title">AI / AGENT LAB</span><span class="sub">AUTOMATION · AGENTS · ROUTING</span>
+      <span class="desk d1"><label>AI CORE</label></span><span class="desk d2"><label>SCOUT</label></span><span class="desk d3"><label>AUTOMATION</label></span>
+    </div>
+    <div class="room music" data-room="music"><span class="title">MUSIC & CREATIVE</span><span class="sub">ARTIST · RELEASE · COVER · DJ</span>
+      <span class="desk d1"><label>ARDA MORON</label></span><span class="desk d2"><label>KAMIKAZE</label></span><span class="desk d3"><label>RELEASE OPS</label></span>
+    </div>
+    <div class="room tech" data-room="tech"><span class="title">TECH & OPERATIONS</span><span class="sub">GITHUB · CLOUDFLARE · VPS · QC</span>
+      <span class="desk d1"><label>GITHUB</label></span><span class="desk d2"><label>CLOUDFLARE</label></span><span class="desk d3"><label>RUNTIME QC</label></span>
+    </div>
+
+    <button class="actor idle" id="actor-owner" data-agent="owner" data-name="ARDA">AR</button>
+    <button class="actor idle" id="actor-web" data-agent="web" data-name="WEB">WB</button>
+    <button class="actor idle" id="actor-media" data-agent="media" data-name="MEDIA">MD</button>
+    <button class="actor idle" id="actor-scout" data-agent="scout" data-name="SCOUT">SC</button>
+    <button class="actor idle" id="actor-music" data-agent="music" data-name="MUSIC">MU</button>
+    <button class="actor idle" id="actor-devops" data-agent="devops" data-name="DEVOPS">DO</button>
   </div>
+  <div class="eventlog" id="eventlog"><b>SYSTEM</b> · Virtual office initialized.</div>
 </section>
 </main>
+
+<aside class="console">
+  <div class="kicker">Command Console</div>
+  <div class="card form">
+    <b>Assign New Task</b>
+    <label>Task</label><input id="taskTitle" placeholder="contoh: QC website baru">
+    <label>Agent</label><select id="taskAgent"></select>
+    <label>Destination Room</label>
+    <select id="taskRoom">
+      <option value="studio">NADMO Studio</option><option value="media">Content & Media</option><option value="ai">AI / Agent Lab</option>
+      <option value="music">Music & Creative</option><option value="tech">Tech & Operations</option><option value="owner">Owner / Approval</option>
+    </select>
+    <button class="primary" id="startTask">START TASK</button>
+  </div>
+
+  <div class="kicker" style="margin-top:14px">Active Tasks</div>
+  <div id="taskList"></div>
+
+  <div class="kicker" style="margin-top:14px">Owner Approval</div>
+  <div id="approvalList"></div>
+
+  <button class="secondary" id="resetOffice">RESET LOCAL OFFICE</button>
+</aside>
 </div>
 </div>
 
 <script>
-const rooms={
- owner:{code:"O-01 / OWNER",title:"Owner / General Manager",desc:"Pusat keputusan, approval dan command seluruh operasi NADMO.",m:[["READY","Approval"],["LOCAL","Data"],["V2","Visual"],["0","Live feeds"]],p:[["Decision Gateway","Owner approval surface"],["Executive Snapshot","Cross-project overview"],["Priority Desk","Blockers & next actions"]],a:["Arda / Owner","Approval Gateway","KAI / AI Layer"]},
- studio:{code:"S-01 / STUDIO",title:"NADMO Studio",desc:"Web, desain, client production dan pekerjaan kreatif digital.",m:[["3","Workstations"],["LOCAL","Data"],["READY","Visual"],["NEXT","Jobs feed"]],p:[["Web Production","Sites & landing pages"],["Creative Production","Design & visual"],["Client Desk","Delivery & client jobs"]],a:["Web Builder","Design","Client Ops"]},
- media:{code:"M-01 / MEDIA",title:"Content & Media",desc:"Publishing, nightlife media, marketing content dan channel operations.",m:[["5","Workstations"],["3+","Channels"],["LOCAL","Data"],["NEXT","Publish feed"]],p:[["BaliNightlife","Bali nightlife media"],["Aku Cinta Malam","National nightlife"],["Bali Wedding DJ","Marketing & booking"]],a:["Editorial","Publisher","Content Ops"]},
- ai:{code:"A-01 / AI",title:"AI / Agent Lab",desc:"Automation, agent runtime, routing dan human approval.",m:[["3","Agent nodes"],["SAFE","Approval"],["LOCAL","Status"],["NEXT","Runtime API"]],p:[["NADMO Cloud Agent","Core agent workspace"],["Automation Queue","Triggered work"],["Execution Log","Activity stream"]],a:["AI Core","Scout","Automation"]},
- music:{code:"MU-1 / MUSIC",title:"Music & Creative",desc:"Artist, DJ, release, artwork dan distribution pipeline.",m:[["3","Workstations"],["2","Artist nodes"],["LOCAL","Catalog"],["NEXT","Release feed"]],p:[["Arda Moron","DJ / artist catalog"],["Kamikaze","Dubstep alter ego"],["Release Pipeline","Artwork & distribution"]],a:["A&R","Artwork","Release Ops"]},
- tech:{code:"T-01 / TECH",title:"Tech & Operations",desc:"GitHub, Cloudflare, VPS, deployment dan runtime QC.",m:[["GH","Source"],["CF","Edge"],["VPS","Runtime"],["NEXT","Health feed"]],p:[["GitHub","Source & deploy evidence"],["Cloudflare","Pages / DNS / edge"],["Runtime QC","Health & release checks"]],a:["Deploy Monitor","Runtime QC","Domain Watch"]}
+const ROOM_POS={
+ owner:[77,17],studio:[28,16],media:[28,47],ai:[77,47],music:[28,80],tech:[77,80]
 };
-const qs=s=>document.querySelector(s), qsa=s=>[...document.querySelectorAll(s)];
-function showRoom(key){
- const r=rooms[key]; if(!r)return;
- qsa(".zone").forEach(z=>z.classList.toggle("active",z.dataset.room===key));
- qs("#dk").textContent=r.code; qs("#dt").textContent=r.title; qs("#dd").textContent=r.desc;
- qs("#metrics").innerHTML=r.m.map(x=>'<div><b>'+x[0]+'</b><span>'+x[1]+'</span></div>').join("");
- qs("#projects").innerHTML=r.p.map(x=>'<div class="lineitem"><b>'+x[0]+'</b><span>'+x[1]+'</span></div>').join("");
- qs("#agents").innerHTML=r.a.map(x=>'<div class="lineitem"><b>'+x+'</b><span>configured node</span></div>').join("");
- qs("#detail").classList.add("open");
+const DEFAULT_AGENTS={
+ owner:{name:"Arda / Owner",short:"AR",room:"owner",status:"idle"},
+ web:{name:"Web Builder",short:"WB",room:"studio",status:"idle"},
+ media:{name:"Media Ops",short:"MD",room:"media",status:"idle"},
+ scout:{name:"Scout Agent",short:"SC",room:"ai",status:"idle"},
+ music:{name:"Music Ops",short:"MU",room:"music",status:"idle"},
+ devops:{name:"DevOps",short:"DO",room:"tech",status:"idle"}
+};
+let state=loadState();
+function loadState(){
+ try{
+  const s=JSON.parse(localStorage.getItem("nadmo-hq-v3")||"null");
+  if(s&&s.agents&&s.tasks&&s.approvals)return s;
+ }catch(e){}
+ return {agents:JSON.parse(JSON.stringify(DEFAULT_AGENTS)),tasks:[],approvals:[],events:[]};
 }
-qsa(".zone").forEach(z=>z.addEventListener("click",()=>showRoom(z.dataset.room)));
-qs("#close").addEventListener("click",()=>qs("#detail").classList.remove("open"));
-const links=Object.entries(rooms).map(([k,r])=>'<button class="qitem" data-link="'+k+'" style="width:100%;color:inherit;text-align:left;cursor:pointer"><i class="qdot"></i><div><b>'+r.title+'</b><small>'+r.code+'</small></div></button>').join("");
-qs("#roomLinks").innerHTML=links;
-qsa("[data-link]").forEach(b=>b.addEventListener("click",()=>showRoom(b.dataset.link)));
+function save(){localStorage.setItem("nadmo-hq-v3",JSON.stringify(state));qs("#saveStatus").textContent="SAVED"}
+function qs(s){return document.querySelector(s)} function qsa(s){return [...document.querySelectorAll(s)]}
+function log(msg){const stamp=new Intl.DateTimeFormat("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"}).format(new Date());state.events.unshift(stamp+" · "+msg);state.events=state.events.slice(0,20);qs("#eventlog").innerHTML="<b>EVENT</b> · "+state.events[0];save()}
+function posActor(id,room,offset=0){
+ const p=ROOM_POS[room]||ROOM_POS.owner;const el=qs("#actor-"+id);if(!el)return;
+ const spread=[[-5,-1],[0,2],[5,-2],[3,5],[-4,5],[6,4]][offset%6];
+ el.style.left=(p[0]+spread[0])+"%";el.style.top=(p[1]+spread[1])+"%";
+}
+function renderAgents(){
+ const occup={};Object.keys(state.agents).forEach((id,i)=>{const a=state.agents[id];occup[a.room]=(occup[a.room]||0)+1;posActor(id,a.room,occup[a.room]-1);
+  const el=qs("#actor-"+id);el.className="actor "+a.status;el.title=a.name+" · "+a.status;
+ });
+ qs("#agentList").innerHTML=Object.entries(state.agents).map(([id,a])=>'<button class="agentrow" data-pick="'+id+'" style="width:100%;color:inherit;text-align:left"><span class="avmini">'+a.short+'</span><span class="meta"><b>'+a.name+'</b><small>'+a.room.toUpperCase()+'</small></span><span class="state '+a.status+'">'+a.status.toUpperCase()+'</span></button>').join("");
+ qs("#taskAgent").innerHTML=Object.entries(state.agents).filter(([id])=>id!=="owner").map(([id,a])=>'<option value="'+id+'">'+a.name+'</option>').join("");
+ qsa("[data-pick]").forEach(b=>b.onclick=()=>selectAgent(b.dataset.pick));
+}
+function selectAgent(id){
+ qs("#taskAgent").value=id;const a=state.agents[id];qsa(".room").forEach(r=>r.classList.toggle("focus",r.dataset.room===a.room));log("Selected "+a.name);
+}
+qsa(".actor").forEach(b=>b.onclick=()=>selectAgent(b.dataset.agent));
+function taskCard(t){
+ return '<div class="task"><div class="taskhead"><b>'+esc(t.title)+'</b><small>'+t.progress+'%</small></div><small>'+state.agents[t.agent].name+' → '+t.room.toUpperCase()+'</small><div class="progress"><i style="width:'+t.progress+'%"></i></div><div class="taskactions"><button data-plus="'+t.id+'">+10%</button><button data-done="'+t.id+'">COMPLETE</button></div></div>'
+}
+function renderTasks(){
+ qs("#taskList").innerHTML=state.tasks.length?state.tasks.map(taskCard).join(""):'<div class="empty">Belum ada task aktif.</div>';
+ qsa("[data-plus]").forEach(b=>b.onclick=()=>advanceTask(b.dataset.plus,10));
+ qsa("[data-done]").forEach(b=>b.onclick=()=>completeTask(b.dataset.done));
+ qs("#approvalList").innerHTML=state.approvals.length?state.approvals.map(a=>'<div class="task approval"><div class="taskhead"><b>'+esc(a.title)+'</b><small>WAITING</small></div><small>'+state.agents[a.agent].name+'</small><div class="taskactions"><button data-approve="'+a.id+'">APPROVE</button><button data-reject="'+a.id+'">REJECT</button></div></div>').join(""):'<div class="empty">Tidak ada approval menunggu.</div>';
+ qsa("[data-approve]").forEach(b=>b.onclick=()=>resolveApproval(b.dataset.approve,true));
+ qsa("[data-reject]").forEach(b=>b.onclick=()=>resolveApproval(b.dataset.reject,false));
+ qs("#approvalCount").textContent=state.approvals.length+" WAITING";
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
+function startTask(){
+ const title=qs("#taskTitle").value.trim();const agent=qs("#taskAgent").value;const room=qs("#taskRoom").value;
+ if(!title){qs("#taskTitle").focus();return}
+ if(state.tasks.some(t=>t.agent===agent)){log(state.agents[agent].name+" already has an active task");return}
+ const id=Date.now().toString(36);state.tasks.push({id,title,agent,room,progress:5,created:Date.now()});
+ state.agents[agent].room=room;state.agents[agent].status="working";qs("#taskTitle").value="";
+ log(state.agents[agent].name+" started: "+title);renderAll();
+}
+function advanceTask(id,delta){
+ const t=state.tasks.find(x=>x.id===id);if(!t)return;t.progress=Math.min(100,t.progress+delta);
+ if(t.progress>=100)return completeTask(id);log(t.title+" progress "+t.progress+"%");renderAll();
+}
+function completeTask(id){
+ const i=state.tasks.findIndex(x=>x.id===id);if(i<0)return;const t=state.tasks.splice(i,1)[0];
+ state.approvals.push({...t,progress:100});state.agents[t.agent].room="owner";state.agents[t.agent].status="waiting";
+ log(t.title+" completed; waiting owner approval");renderAll();
+}
+function resolveApproval(id,ok){
+ const i=state.approvals.findIndex(x=>x.id===id);if(i<0)return;const a=state.approvals.splice(i,1)[0];
+ state.agents[a.agent].room=DEFAULT_AGENTS[a.agent].room;state.agents[a.agent].status="idle";
+ log((ok?"APPROVED: ":"REJECTED: ")+a.title);renderAll();
+}
+function renderAll(){renderAgents();renderTasks();save()}
+qs("#startTask").onclick=startTask;
+qs("#resetOffice").onclick=()=>{if(confirm("Reset semua task/approval lokal?")){state={agents:JSON.parse(JSON.stringify(DEFAULT_AGENTS)),tasks:[],approvals:[],events:[]};localStorage.removeItem("nadmo-hq-v3");log("Local office reset");renderAll()}};
+async function loadGitHub(){
+ const status=qs("#gitStatus"),sha=qs("#gitSha"),box=qs("#gitBox");
+ try{
+  const r=await fetch("https://api.github.com/repos/ardarawk-cloud/nadmo-cloud-agent/commits/main",{headers:{"Accept":"application/vnd.github+json"}});
+  if(!r.ok)throw new Error("HTTP "+r.status);const d=await r.json();
+  status.textContent="LIVE CONNECTED";sha.textContent=(d.sha||"").slice(0,7)||"—";box.classList.add("ok");
+ }catch(e){status.textContent="UNAVAILABLE";sha.textContent="—";box.classList.add("warn")}
+}
 function tick(){qs("#clock").textContent=new Intl.DateTimeFormat("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"}).format(new Date())}
-tick();setInterval(tick,1000);showRoom("owner");
+tick();setInterval(tick,1000);renderAll();loadGitHub();
 </script>
 </body>
 </html>
