@@ -194,16 +194,16 @@ const rooms={
   finance:{code:"F-01 / Finance",title:"Finance Room",desc:"Shell finance untuk pemasukan, pengeluaran, pajak dan target bisnis.",metrics:[["IDR","Currency"],["LOCAL","Data"],["PRIVATE","By design"],["NEXT","Manual/API feed"]],projects:[["Income","Revenue ledger"],["Expenses","Cost ledger"],["Tax","Tax planning / records"]],agents:["Finance","Tax","Reporting"]}
 };
 const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
-function render(key){
+function render(key,userInitiated=false){
   const r=rooms[key]; if(!r)return;
   qa(".room").forEach(el=>el.classList.toggle("active",el.dataset.room===key));
   q("#panelKicker").textContent=r.code;q("#panelTitle").textContent=r.title;q("#panelDesc").textContent=r.desc;
   q("#metrics").innerHTML=r.metrics.map(m=>'<div class="metric"><b>'+m[0]+'</b><small>'+m[1]+'</small></div>').join("");
   q("#projects").innerHTML=r.projects.map(p=>'<div class="project"><span class="dot"></span><div><strong>'+p[0]+'</strong><span>'+p[1]+'</span></div></div>').join("");
   q("#agents").innerHTML=r.agents.map(a=>'<span class="agent">'+a+'</span>').join("");
-  if(innerWidth<1050) q("#panel").scrollIntoView({behavior:"smooth",block:"start"});
+  if(userInitiated && innerWidth<1050) q("#panel").scrollIntoView({behavior:"smooth",block:"start"});
 }
-qa(".room").forEach(el=>el.addEventListener("click",()=>render(el.dataset.room)));
+qa(".room").forEach(el=>el.addEventListener("click",()=>render(el.dataset.room,true)));
 q("#search").addEventListener("input",e=>{
   const t=e.target.value.toLowerCase().trim();
   qa(".room").forEach(el=>{
