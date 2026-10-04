@@ -1,0 +1,53 @@
+{
+  "version": "0.1.0",
+  "owner": {
+    "id": "arda",
+    "name": "Arda",
+    "role": "OWNER",
+    "authority": "FINAL"
+  },
+  "core": [
+    {
+      "id": "kai-prime",
+      "name": "KAI",
+      "role": "ACC CORE AI",
+      "manager": "arda",
+      "division": "ACC CORE",
+      "visual_entity": true
+    },
+    {
+      "id": "gm-ai",
+      "name": "GM AI",
+      "role": "GENERAL MANAGER AI",
+      "manager": "kai-prime",
+      "division": "ACC CORE",
+      "visual_entity": true
+    }
+  ],
+  "divisions": [
+    {
+      "id": "nadmo-studio",
+      "name": "NADMO STUDIO",
+      "head": "head-studio",
+      "workers": ["web-builder", "design-agent", "client-ops", "production-qa"]
+    },
+    {
+      "id": "media-nightlife",
+      "name": "MEDIA & NIGHTLIFE",
+      "head": "head-media",
+      "workers": ["editorial-agent", "content-producer", "publisher-agent", "scout-agent", "campaign-ops"]
+    },
+    {
+      "id": "music-entertainment",
+      "name": "MUSIC & ENTERTAINMENT",
+      "head": "head-music",
+      "workers": ["ar-agent", "release-ops", "artwork-agent", "metadata-agent", "distribution-monitor"]
+    },
+    {
+      "id": "tech-infra",
+      "name": "TECH & INFRA",
+      "head": "head-tech",
+      "workers": ["devops-agent", "github-monitor", "cloudflare-monitor", "runtime-qc", "domain-watch"]
+    }
+  ]
+}
