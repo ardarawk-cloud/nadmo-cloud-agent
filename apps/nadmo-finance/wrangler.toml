@@ -1,0 +1,19 @@
+name = "nadmo-finance"
+main = "src/index.js"
+compatibility_date = "2026-10-09"
+workers_dev = true
+
+routes = [
+  { pattern = "finance.nadmo.id", custom_domain = true }
+]
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nadmo-finance"
+database_id = "REPLACE_WITH_NADMO_FINANCE_D1_ID"
+migrations_dir = "migrations"
