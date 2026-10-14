@@ -1,0 +1,65 @@
+name: Inspect KAI INDODAX Egress
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/inspect-kai-indodax-egress.yml"
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    env:
+      VPS_HOST: 151.243.222.93
+      VPS_PORT: "45678"
+      VPS_USER: root
+      VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
+
+    steps:
+      - name: Configure SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$VPS_PASSWORD"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Inspect VPS market-data connectivity
+        shell: bash
+        run: |
+          set -euo pipefail
+          sshpass -p "$VPS_PASSWORD" ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" '
+            set -u
+            echo "=== DNS ==="
+            getent ahostsv4 indodax.com || true
+            echo "=== EGRESS ==="
+            curl -4 -sS --max-time 10 https://api.ipify.org || true
+            echo
+            echo "=== SERVER TIME ==="
+            curl -4 -sS --connect-timeout 5 --max-time 15 -w "\nHTTP=%{http_code} REMOTE=%{remote_ip} SSL=%{ssl_verify_result}\n" https://indodax.com/api/server_time || true
+            echo
+            echo "=== TICKER ==="
+            curl -4 -sS --connect-timeout 5 --max-time 15 -w "\nHTTP=%{http_code} REMOTE=%{remote_ip} SSL=%{ssl_verify_result}\n" https://indodax.com/api/ticker/btcidr || true
+            echo
+            echo "=== HTTPX ==="
+            /opt/kai-trade-x/venv/bin/python - <<"PY"
+import asyncio, httpx
+
+async def main():
+    for url in [
+        "https://indodax.com/api/server_time",
+        "https://indodax.com/api/ticker/btcidr",
+    ]:
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0)) as client:
+                r = await client.get(url)
+                print(url, "status=", r.status_code, "http=", r.http_version, "body=", r.text[:300])
+        except Exception as exc:
+            print(url, type(exc).__name__, repr(exc))
+
+asyncio.run(main())
+PY
+          '
