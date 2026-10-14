@@ -107,3 +107,14 @@ jobs:
           else
             sshpass -p "$VPS_PASSWORD" ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "$CHECK"
           fi
+
+      - name: Verify crash recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHECK='systemctl kill -s SIGKILL kai-trade-x-paper; sleep 7; systemctl is-active kai-trade-x-paper; HEALTH=$(curl -fsS http://127.0.0.1:8787/health); echo "$HEALTH"; echo "$HEALTH" | grep -q "\"status\":\"SYSTEM_ONLINE\""; echo "$HEALTH" | grep -q "\"live_execution_allowed\":false"'
+          if [ "$AUTH_MODE" = "key" ]; then
+            ssh -o IdentitiesOnly=yes -i ~/.ssh/id_ed25519 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "$CHECK"
+          else
+            sshpass -p "$VPS_PASSWORD" ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "$CHECK"
+          fi
