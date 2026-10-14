@@ -1,0 +1,109 @@
+name: Deploy KAI TRADE X PAPER
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "services/kai-trade-x-paper/**"
+      - ".github/workflows/deploy-kai-trade-x-paper-vps.yml"
+
+concurrency:
+  group: kai-trade-x-paper-vps
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VPS_HOST: 151.243.222.93
+      VPS_PORT: "45678"
+      VPS_USER: root
+      VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
+      VPS_KEY: ${{ secrets.NADMO_VPS_SSH_KEY }}
+
+    steps:
+      - name: Checkout deployment snapshot
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/kai-trade-x-paper/backend/requirements.txt
+
+      - name: Validate deployment snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -r services/kai-trade-x-paper/backend/requirements.txt
+          cd services/kai-trade-x-paper/backend
+          PYTHONPATH=. python -m pytest -q
+
+      - name: Configure VPS authentication
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
+
+          if [ -n "${VPS_KEY:-}" ]; then
+            printf '%s\n' "$VPS_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+            chmod 600 ~/.ssh/id_ed25519
+            if ssh -o BatchMode=yes -o IdentitiesOnly=yes -i ~/.ssh/id_ed25519 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" true; then
+              echo "AUTH_MODE=key" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          fi
+
+          if [ -n "${VPS_PASSWORD:-}" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq sshpass
+            if sshpass -p "$VPS_PASSWORD" ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" true; then
+              echo "AUTH_MODE=password" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          fi
+
+          echo "No working VPS credential is configured" >&2
+          exit 1
+
+      - name: Package KAI PAPER snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x services/kai-trade-x-paper/deploy_vps.sh
+          tar -C services/kai-trade-x-paper -czf /tmp/kai-trade-x-paper.tgz .
+
+      - name: Upload KAI PAPER snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$AUTH_MODE" = "key" ]; then
+            scp -o IdentitiesOnly=yes -i ~/.ssh/id_ed25519 -P "$VPS_PORT" /tmp/kai-trade-x-paper.tgz "$VPS_USER@$VPS_HOST:/tmp/kai-trade-x-paper.tgz"
+          else
+            sshpass -p "$VPS_PASSWORD" scp -o PreferredAuthentications=password -o PubkeyAuthentication=no -P "$VPS_PORT" /tmp/kai-trade-x-paper.tgz "$VPS_USER@$VPS_HOST:/tmp/kai-trade-x-paper.tgz"
+          fi
+
+      - name: Install KAI PAPER service
+        shell: bash
+        run: |
+          set -euo pipefail
+          REMOTE='rm -rf /tmp/kai-trade-x-paper-src && mkdir -p /tmp/kai-trade-x-paper-src && tar -xzf /tmp/kai-trade-x-paper.tgz -C /tmp/kai-trade-x-paper-src && chmod +x /tmp/kai-trade-x-paper-src/deploy_vps.sh && KAI_RELEASE_SHA="${{ github.sha }}" /tmp/kai-trade-x-paper-src/deploy_vps.sh'
+          if [ "$AUTH_MODE" = "key" ]; then
+            ssh -o IdentitiesOnly=yes -i ~/.ssh/id_ed25519 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "$REMOTE"
+          else
+            sshpass -p "$VPS_PASSWORD" ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "$REMOTE"
+          fi
+
+      - name: Verify KAI PAPER runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHECK='systemctl is-active kai-trade-x-paper; HEALTH=$(curl -fsS http://127.0.0.1:8787/health); SAFETY=$(curl -fsS http://127.0.0.1:8787/system/safety); AUTO=$(curl -fsS http://127.0.0.1:8787/paper/auto); echo "$HEALTH"; echo "$SAFETY"; echo "$AUTO"; echo "$HEALTH" | grep -q "\"status\":\"SYSTEM_ONLINE\""; echo "$HEALTH" | grep -q "\"version\":\"0.8.0\""; echo "$HEALTH" | grep -q "\"trading_mode\":\"PAPER\""; echo "$HEALTH" | grep -q "\"live_execution_allowed\":false"; echo "$AUTO" | grep -q "\"running\":true"; echo "$AUTO" | grep -q "\"loss_lock_cooldown_hours\":24"'
+          if [ "$AUTH_MODE" = "key" ]; then
+            ssh -o IdentitiesOnly=yes -i ~/.ssh/id_ed25519 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "$CHECK"
+          else
+            sshpass -p "$VPS_PASSWORD" ssh -o PreferredAuthentications=password -o PubkeyAuthentication=no -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "$CHECK"
+          fi
