@@ -115,8 +115,8 @@ cat >"$APACHE_SITE" <<APACHE
     ProxyPassReverse / http://127.0.0.1:$PORT/
 
     RequestHeader set X-Forwarded-Proto "http"
-    ErrorLog ${APACHE_LOG_DIR}/kaitrade-error.log
-    CustomLog ${APACHE_LOG_DIR}/kaitrade-access.log combined
+    ErrorLog /var/log/apache2/kaitrade-error.log
+    CustomLog /var/log/apache2/kaitrade-access.log combined
 </VirtualHost>
 APACHE
 
@@ -145,8 +145,8 @@ cat >"$APACHE_SITE" <<APACHE
     RewriteCond %{REQUEST_URI} !^/.well-known/acme-challenge/
     RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
-    ErrorLog ${APACHE_LOG_DIR}/kaitrade-error.log
-    CustomLog ${APACHE_LOG_DIR}/kaitrade-access.log combined
+    ErrorLog /var/log/apache2/kaitrade-error.log
+    CustomLog /var/log/apache2/kaitrade-access.log combined
 </VirtualHost>
 
 <IfModule mod_ssl.c>
@@ -162,8 +162,8 @@ cat >"$APACHE_SITE" <<APACHE
     ProxyPassReverse / http://127.0.0.1:$PORT/
     RequestHeader set X-Forwarded-Proto "https"
 
-    ErrorLog ${APACHE_LOG_DIR}/kaitrade-error.log
-    CustomLog ${APACHE_LOG_DIR}/kaitrade-access.log combined
+    ErrorLog /var/log/apache2/kaitrade-error.log
+    CustomLog /var/log/apache2/kaitrade-access.log combined
 </VirtualHost>
 </IfModule>
 APACHE
