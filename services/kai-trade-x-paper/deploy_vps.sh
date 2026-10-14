@@ -125,13 +125,105 @@ apache2ctl configtest
 systemctl reload apache2
 
 if [ ! -s "/etc/letsencrypt/live/$PUBLIC_HOST/fullchain.pem" ]; then
-  for _ in $(seq 1 30); do
-    if getent ahostsv4 "$PUBLIC_HOST" | awk '{print $1}' | grep -qx '151.243.222.93'; then
+  for _ in $(seq 1 60); do
+    if getent ahostsv6 "$PUBLIC_HOST" | awk '{print $1}' | grep -qi '^2407:6ac0:3:5:1234:4321:619f:1  certbot certonly --webroot -w "$ACME_ROOT" -d "$PUBLIC_HOST" --non-interactive --agree-tos --register-unsafely-without-email
+fi
+
+cat >"$APACHE_SITE" <<APACHE
+<VirtualHost *:80>
+    ServerName $PUBLIC_HOST
+    DocumentRoot $ACME_ROOT
+
+    ProxyPass /.well-known/acme-challenge/ !
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/.well-known/acme-challenge/
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+    ErrorLog /var/log/apache2/kaitrade-error.log
+    CustomLog /var/log/apache2/kaitrade-access.log combined
+</VirtualHost>
+
+<IfModule mod_ssl.c>
+<VirtualHost *:443>
+    ServerName $PUBLIC_HOST
+
+    SSLEngine on
+    SSLCertificateFile /etc/letsencrypt/live/$PUBLIC_HOST/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/$PUBLIC_HOST/privkey.pem
+
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:$PORT/ nocanon
+    ProxyPassReverse / http://127.0.0.1:$PORT/
+    RequestHeader set X-Forwarded-Proto "https"
+
+    ErrorLog /var/log/apache2/kaitrade-error.log
+    CustomLog /var/log/apache2/kaitrade-access.log combined
+</VirtualHost>
+</IfModule>
+APACHE
+
+apache2ctl configtest
+systemctl reload apache2
+
+PUBLIC_HEALTH="$(curl -fsS --resolve "$PUBLIC_HOST:443:127.0.0.1" "https://$PUBLIC_HOST/health")"
+echo "$PUBLIC_HEALTH"
+echo "$PUBLIC_HEALTH" | grep -q '"status":"SYSTEM_ONLINE"'
+echo "$PUBLIC_HEALTH" | grep -q '"version":"0.8.0"'
+echo "$PUBLIC_HEALTH" | grep -q '"live_execution_allowed":false'
+
+echo "KAI_DEPLOY_OK release=$RELEASE_SHA service=$SERVICE_NAME port=$PORT public=https://$PUBLIC_HOST"
+; then
       break
     fi
     sleep 2
   done
-  getent ahostsv4 "$PUBLIC_HOST" | awk '{print $1}' | grep -qx '151.243.222.93'
+  getent ahostsv6 "$PUBLIC_HOST" | awk '{print $1}' | grep -qi '^2407:6ac0:3:5:1234:4321:619f:1  certbot certonly --webroot -w "$ACME_ROOT" -d "$PUBLIC_HOST" --non-interactive --agree-tos --register-unsafely-without-email
+fi
+
+cat >"$APACHE_SITE" <<APACHE
+<VirtualHost *:80>
+    ServerName $PUBLIC_HOST
+    DocumentRoot $ACME_ROOT
+
+    ProxyPass /.well-known/acme-challenge/ !
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/.well-known/acme-challenge/
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+    ErrorLog /var/log/apache2/kaitrade-error.log
+    CustomLog /var/log/apache2/kaitrade-access.log combined
+</VirtualHost>
+
+<IfModule mod_ssl.c>
+<VirtualHost *:443>
+    ServerName $PUBLIC_HOST
+
+    SSLEngine on
+    SSLCertificateFile /etc/letsencrypt/live/$PUBLIC_HOST/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/$PUBLIC_HOST/privkey.pem
+
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:$PORT/ nocanon
+    ProxyPassReverse / http://127.0.0.1:$PORT/
+    RequestHeader set X-Forwarded-Proto "https"
+
+    ErrorLog /var/log/apache2/kaitrade-error.log
+    CustomLog /var/log/apache2/kaitrade-access.log combined
+</VirtualHost>
+</IfModule>
+APACHE
+
+apache2ctl configtest
+systemctl reload apache2
+
+PUBLIC_HEALTH="$(curl -fsS --resolve "$PUBLIC_HOST:443:127.0.0.1" "https://$PUBLIC_HOST/health")"
+echo "$PUBLIC_HEALTH"
+echo "$PUBLIC_HEALTH" | grep -q '"status":"SYSTEM_ONLINE"'
+echo "$PUBLIC_HEALTH" | grep -q '"version":"0.8.0"'
+echo "$PUBLIC_HEALTH" | grep -q '"live_execution_allowed":false'
+
+echo "KAI_DEPLOY_OK release=$RELEASE_SHA service=$SERVICE_NAME port=$PORT public=https://$PUBLIC_HOST"
+
   certbot certonly --webroot -w "$ACME_ROOT" -d "$PUBLIC_HOST" --non-interactive --agree-tos --register-unsafely-without-email
 fi
 
