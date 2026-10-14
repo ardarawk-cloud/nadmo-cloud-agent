@@ -47,4 +47,10 @@ jobs:
           echo "=== KAI ENDPOINT ==="
           curl -sS --max-time 15 -w "\nHTTP=%{http_code}\n" http://127.0.0.1:8787/market/ticker/BTCIDR
           echo
+          echo "=== KAI SCAN ==="
+          curl -sS --max-time 20 -w "\nHTTP=%{http_code}\n" "http://127.0.0.1:8787/market/scan/BTCIDR?timeframe=15"
+          echo
+          echo "=== KAI AUTO ==="
+          curl -sS --max-time 15 -w "\nHTTP=%{http_code}\n" http://127.0.0.1:8787/paper/auto
+          echo
           REMOTE
