@@ -27,6 +27,22 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
 
+      - name: Verify public KAI HTTPS
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if HEALTH=$(curl -fsS --connect-timeout 5 --max-time 15 https://kaitrade.nadmo.id/health); then
+              echo "$HEALTH"
+              echo "$HEALTH" | grep -q '"status":"SYSTEM_ONLINE"'
+              echo "$HEALTH" | grep -q '"version":"0.8.0"'
+              echo "$HEALTH" | grep -q '"live_execution_allowed":false'
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
       - name: Inspect VPS market-data connectivity
         shell: bash
         run: |
