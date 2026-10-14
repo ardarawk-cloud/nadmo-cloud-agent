@@ -53,4 +53,18 @@ jobs:
           echo "=== KAI AUTO ==="
           curl -sS --max-time 15 -w "\nHTTP=%{http_code}\n" http://127.0.0.1:8787/paper/auto
           echo
+          echo "=== LISTENING PORTS ==="
+          ss -ltnp | sed -n '1,80p'
+          echo
+          echo "=== WEB SERVERS ==="
+          command -v nginx || true
+          command -v caddy || true
+          systemctl is-active nginx || true
+          systemctl is-active caddy || true
+          echo
+          echo "=== NGINX SITES ==="
+          ls -la /etc/nginx/sites-enabled 2>/dev/null || true
+          echo
+          echo "=== CADDYFILE ==="
+          sed -n '1,160p' /etc/caddy/Caddyfile 2>/dev/null || true
           REMOTE
