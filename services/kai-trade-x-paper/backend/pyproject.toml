@@ -1,0 +1,7 @@
+[project]
+name = "kai-trade-x-backend"
+version = "0.8.0"
+requires-python = "==3.12.*"
+
+[tool.fastapi]
+entrypoint = "app.main:app"
