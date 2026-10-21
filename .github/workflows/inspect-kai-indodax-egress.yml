@@ -69,6 +69,12 @@ jobs:
           echo "=== KAI AUTO ==="
           curl -sS --max-time 15 -w "\nHTTP=%{http_code}\n" http://127.0.0.1:8787/paper/auto
           echo
+          echo "=== KAI ACCOUNT ==="
+          curl -sS --max-time 15 -w "\nHTTP=%{http_code}\n" http://127.0.0.1:8787/paper/account
+          echo
+          echo "=== KAI JOURNAL ==="
+          curl -sS --max-time 15 -w "\nHTTP=%{http_code}\n" http://127.0.0.1:8787/paper/journal
+          echo
           echo "=== LISTENING PORTS ==="
           ss -ltnp | sed -n '1,80p'
           echo
