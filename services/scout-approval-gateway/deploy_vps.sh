@@ -105,7 +105,11 @@ if ! sudo nginx -t; then
   exit 4
 fi
 
-sudo systemctl reload nginx
+if sudo systemctl is-active --quiet nginx; then
+  sudo systemctl reload nginx
+else
+  sudo systemctl enable --now nginx
+fi
 
 if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
   if ! command -v certbot >/dev/null 2>&1; then
@@ -117,7 +121,11 @@ else
   sudo certbot install --cert-name "$DOMAIN" >/dev/null 2>&1 || true
 fi
 sudo nginx -t
-sudo systemctl reload nginx
+if sudo systemctl is-active --quiet nginx; then
+  sudo systemctl reload nginx
+else
+  sudo systemctl enable --now nginx
+fi
 
 if [ -f "$SCOUT_DIR/.env" ]; then
   sudo python3 - "$SCOUT_DIR/.env" "$NEW_BASE" <<'PY'
