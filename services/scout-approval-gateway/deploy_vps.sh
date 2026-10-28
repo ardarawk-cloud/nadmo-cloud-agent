@@ -154,4 +154,12 @@ curl -kfsS "https://$DOMAIN/scout-approval/api/_healthcheck"
 echo
 cd "$SCOUT_DIR"
 NODE_TLS_REJECT_UNAUTHORIZED=0 npm run sync:approvals
+
+echo "=== NADMO SCOUT CORE RUNTIME CHECK ==="
+node -e "const p=require('./package.json'); console.log(JSON.stringify({name:p.name,version:p.version,scripts:p.scripts},null,2))" || true
+find src -maxdepth 1 -type f -printf '%f\n' 2>/dev/null | sort | sed -n '1,120p' || true
+sudo systemctl --no-pager --type=service --all | grep -Ei 'nadmo|scout' || true
+if command -v pm2 >/dev/null 2>&1; then pm2 jlist || true; fi
+crontab -l 2>/dev/null | grep -Ei 'nadmo|scout|lead|summary|follow' || true
+
 echo "Scout Approval Gateway migrated successfully"
