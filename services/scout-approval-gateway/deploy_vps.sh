@@ -45,95 +45,63 @@ echo "=== CURRENT WEB LISTENERS ==="
 sudo ss -ltnp | grep -E ':(80|443)\\b' || true
 sudo systemctl --no-pager --type=service --state=running | grep -Ei 'nginx|apache|caddy|traefik' || true
 
-sudo mkdir -p /etc/nginx/snippets
-sudo cp "$APP_DIR/nginx-scout-approval.conf" "$NGINX_SNIPPET"
+if sudo systemctl is-active --quiet apache2; then
+  echo "Apache detected; configuring Scout through Apache"
+  sudo a2enmod proxy proxy_http rewrite ssl headers >/dev/null
+  APACHE_CONF="/etc/apache2/sites-available/agent.nadmo.id.conf"
+  sudo tee "$APACHE_CONF" >/dev/null <<'APACHE'
+<VirtualHost *:80>
+    ServerName agent.nadmo.id
+    ProxyPreserveHost On
+    RewriteEngine On
+    RewriteRule ^/scout-approval$ /scout-approval/ [R=301,L]
+    ProxyPass /scout-approval/ http://127.0.0.1:8788/
+    ProxyPassReverse /scout-approval/ http://127.0.0.1:8788/
+</VirtualHost>
+APACHE
+  sudo a2ensite agent.nadmo.id.conf >/dev/null
+  sudo apache2ctl configtest
+  sudo systemctl reload apache2
 
-CONF="$(sudo grep -RIlE "server_name[^;]*agent\.nadmo\.id" /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null | head -n1 || true)"
-if [ -z "$CONF" ]; then
-  echo "No nginx server block found for $DOMAIN; creating one"
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq certbot python3-certbot-apache
+  if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+    sudo certbot --apache -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect
+  else
+    sudo certbot install --cert-name "$DOMAIN" >/dev/null 2>&1 || true
+  fi
+  sudo apache2ctl configtest
+  sudo systemctl reload apache2
+else
+  echo "Apache not active; configuring Scout through nginx"
+  sudo mkdir -p /etc/nginx/snippets
+  sudo cp "$APP_DIR/nginx-scout-approval.conf" "$NGINX_SNIPPET"
   CONF="/etc/nginx/sites-available/agent.nadmo.id"
   sudo tee "$CONF" >/dev/null <<'NGINX'
 server {
     listen 80;
     listen [::]:80;
     server_name agent.nadmo.id;
-
-    location / {
-        return 404;
-    }
-
+    location / { return 404; }
     include /etc/nginx/snippets/scout-approval-gateway.conf;
 }
 NGINX
   sudo ln -sf "$CONF" /etc/nginx/sites-enabled/agent.nadmo.id
-fi
-
-if ! sudo grep -q "snippets/scout-approval-gateway.conf" "$CONF"; then
-  sudo cp "$CONF" "$CONF.scout-approval-backup"
-  sudo python3 - "$CONF" <<'PY'
-from pathlib import Path
-import re, sys
-path=Path(sys.argv[1])
-s=path.read_text()
-m=re.search(r'server_name\s+[^;]*agent\.nadmo\.id[^;]*;', s)
-if not m:
-    raise SystemExit('agent.nadmo.id server_name not found')
-start=s.rfind('server', 0, m.start())
-brace=s.find('{', start, m.start()+1)
-if start < 0 or brace < 0:
-    raise SystemExit('server block start not found')
-depth=0
-end=None
-for i in range(brace, len(s)):
-    ch=s[i]
-    if ch=='{':
-        depth+=1
-    elif ch=='}':
-        depth-=1
-        if depth==0:
-            end=i
-            break
-if end is None:
-    raise SystemExit('server block end not found')
-insert='\n    include /etc/nginx/snippets/scout-approval-gateway.conf;\n'
-s=s[:end]+insert+s[end:]
-path.write_text(s)
-PY
-fi
-
-if ! sudo nginx -t; then
-  if [ -f "$CONF.scout-approval-backup" ]; then
-    sudo cp "$CONF.scout-approval-backup" "$CONF"
+  sudo nginx -t
+  if sudo systemctl is-active --quiet nginx; then
+    sudo systemctl reload nginx
+  else
+    sudo systemctl enable --now nginx
+  fi
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq certbot python3-certbot-nginx
+  if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+    sudo certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect
+  else
+    sudo certbot install --cert-name "$DOMAIN" >/dev/null 2>&1 || true
   fi
   sudo nginx -t
-  exit 4
-fi
-
-if sudo systemctl is-active --quiet nginx; then
   sudo systemctl reload nginx
-else
-  if ! sudo systemctl enable --now nginx; then
-    echo "=== NGINX START FAILURE DIAGNOSTICS ==="
-    sudo systemctl --no-pager --full status nginx || true
-    sudo journalctl -u nginx --no-pager -n 80 || true
-    sudo ss -ltnp | grep -E ':(80|443)\\b' || true
-    exit 5
-  fi
-fi
-
-sudo apt-get update -qq
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq certbot python3-certbot-nginx
-
-if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
-  sudo certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect
-else
-  sudo certbot install --cert-name "$DOMAIN" >/dev/null 2>&1 || true
-fi
-sudo nginx -t
-if sudo systemctl is-active --quiet nginx; then
-  sudo systemctl reload nginx
-else
-  sudo systemctl enable --now nginx
 fi
 
 if [ -f "$SCOUT_DIR/.env" ]; then
