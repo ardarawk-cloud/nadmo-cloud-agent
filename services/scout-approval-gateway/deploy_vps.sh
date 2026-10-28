@@ -41,6 +41,10 @@ UNIT
   sudo systemctl --no-pager --full status nadmo-scout-approval-gateway.service | head -n 30
 fi
 
+echo "=== CURRENT WEB LISTENERS ==="
+sudo ss -ltnp | grep -E ':(80|443)\\b' || true
+sudo systemctl --no-pager --type=service --state=running | grep -Ei 'nginx|apache|caddy|traefik' || true
+
 sudo mkdir -p /etc/nginx/snippets
 sudo cp "$APP_DIR/nginx-scout-approval.conf" "$NGINX_SNIPPET"
 
