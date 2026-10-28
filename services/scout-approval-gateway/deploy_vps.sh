@@ -108,14 +108,19 @@ fi
 if sudo systemctl is-active --quiet nginx; then
   sudo systemctl reload nginx
 else
-  sudo systemctl enable --now nginx
+  if ! sudo systemctl enable --now nginx; then
+    echo "=== NGINX START FAILURE DIAGNOSTICS ==="
+    sudo systemctl --no-pager --full status nginx || true
+    sudo journalctl -u nginx --no-pager -n 80 || true
+    sudo ss -ltnp | grep -E ':(80|443)\\b' || true
+    exit 5
+  fi
 fi
 
+sudo apt-get update -qq
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq certbot python3-certbot-nginx
+
 if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
-  if ! command -v certbot >/dev/null 2>&1; then
-    sudo apt-get update -qq
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq certbot python3-certbot-nginx
-  fi
   sudo certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect
 else
   sudo certbot install --cert-name "$DOMAIN" >/dev/null 2>&1 || true
