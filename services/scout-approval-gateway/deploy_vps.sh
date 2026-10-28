@@ -153,5 +153,5 @@ fi
 curl -kfsS "https://$DOMAIN/scout-approval/api/_healthcheck"
 echo
 cd "$SCOUT_DIR"
-npm run sync:approvals
+NODE_TLS_REJECT_UNAUTHORIZED=0 npm run sync:approvals
 echo "Scout Approval Gateway migrated successfully"
