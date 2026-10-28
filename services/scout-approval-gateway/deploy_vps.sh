@@ -157,6 +157,13 @@ NODE_TLS_REJECT_UNAUTHORIZED=0 npm run sync:approvals
 NODE_TLS_REJECT_UNAUTHORIZED=0 npm run scheduler:install
 NODE_TLS_REJECT_UNAUTHORIZED=0 npm run scheduler:status
 
+echo "=== SCOUT SYNC/SCHEDULER SOURCE CHECK ==="
+sed -n '1,240p' src/sync-approvals.js 2>/dev/null || true
+sed -n '1,260p' scripts/install-scheduler.sh 2>/dev/null || true
+
+echo "=== RUN ONE LIVE SCOUT CYCLE ==="
+NODE_TLS_REJECT_UNAUTHORIZED=0 npm run cycle
+
 echo "=== NADMO SCOUT CORE RUNTIME CHECK ==="
 node -e "const p=require('./package.json'); console.log(JSON.stringify({name:p.name,version:p.version,scripts:p.scripts},null,2))" || true
 find src -maxdepth 1 -type f -printf '%f\n' 2>/dev/null | sort | sed -n '1,120p' || true
