@@ -59,17 +59,40 @@ if sudo systemctl is-active --quiet apache2; then
     ProxyPassReverse /scout-approval/ http://127.0.0.1:8788/
 </VirtualHost>
 APACHE
-  sudo a2ensite agent.nadmo.id.conf >/dev/null
-  sudo apache2ctl configtest
-  sudo systemctl reload apache2
-
-  sudo apt-get update -qq
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq certbot python3-certbot-apache
-  if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
-    sudo certbot --apache -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect
-  else
-    sudo certbot install --cert-name "$DOMAIN" >/dev/null 2>&1 || true
+  sudo mkdir -p /etc/ssl/nadmo-scout
+  if [ ! -f /etc/ssl/nadmo-scout/agent.crt ] || [ ! -f /etc/ssl/nadmo-scout/agent.key ]; then
+    sudo openssl req -x509 -nodes -newkey rsa:2048 -days 3650 \
+      -keyout /etc/ssl/nadmo-scout/agent.key \
+      -out /etc/ssl/nadmo-scout/agent.crt \
+      -subj "/CN=agent.nadmo.id" \
+      -addext "subjectAltName=DNS:agent.nadmo.id"
+    sudo chmod 600 /etc/ssl/nadmo-scout/agent.key
   fi
+
+  sudo tee "$APACHE_CONF" >/dev/null <<'APACHE'
+<VirtualHost *:80>
+    ServerName agent.nadmo.id
+    ProxyPreserveHost On
+    RewriteEngine On
+    RewriteRule ^/scout-approval$ /scout-approval/ [R=301,L]
+    ProxyPass /scout-approval/ http://127.0.0.1:8788/
+    ProxyPassReverse /scout-approval/ http://127.0.0.1:8788/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName agent.nadmo.id
+    SSLEngine on
+    SSLCertificateFile /etc/ssl/nadmo-scout/agent.crt
+    SSLCertificateKeyFile /etc/ssl/nadmo-scout/agent.key
+    ProxyPreserveHost On
+    RewriteEngine On
+    RewriteRule ^/scout-approval$ /scout-approval/ [R=301,L]
+    ProxyPass /scout-approval/ http://127.0.0.1:8788/
+    ProxyPassReverse /scout-approval/ http://127.0.0.1:8788/
+</VirtualHost>
+APACHE
+
+  sudo a2ensite agent.nadmo.id.conf >/dev/null
   sudo apache2ctl configtest
   sudo systemctl reload apache2
 else
