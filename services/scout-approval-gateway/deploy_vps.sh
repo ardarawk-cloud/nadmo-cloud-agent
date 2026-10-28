@@ -154,6 +154,8 @@ curl -kfsS "https://$DOMAIN/scout-approval/api/_healthcheck"
 echo
 cd "$SCOUT_DIR"
 NODE_TLS_REJECT_UNAUTHORIZED=0 npm run sync:approvals
+NODE_TLS_REJECT_UNAUTHORIZED=0 npm run scheduler:install
+NODE_TLS_REJECT_UNAUTHORIZED=0 npm run scheduler:status
 
 echo "=== NADMO SCOUT CORE RUNTIME CHECK ==="
 node -e "const p=require('./package.json'); console.log(JSON.stringify({name:p.name,version:p.version,scripts:p.scripts},null,2))" || true
