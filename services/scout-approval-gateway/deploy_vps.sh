@@ -155,14 +155,23 @@ echo
 cd "$SCOUT_DIR"
 NODE_TLS_REJECT_UNAUTHORIZED=0 npm run sync:approvals
 NODE_TLS_REJECT_UNAUTHORIZED=0 npm run scheduler:install
+
+# Make scheduled cycles inherit the gateway TLS setting and never hang forever.
+for CRON_FILE in /etc/cron.d/*; do
+  [ -f "$CRON_FILE" ] || continue
+  if sudo grep -q "npm run cycle" "$CRON_FILE" 2>/dev/null; then
+    if ! sudo grep -q '^NODE_TLS_REJECT_UNAUTHORIZED=' "$CRON_FILE"; then
+      sudo sed -i '/^PATH=/a NODE_TLS_REJECT_UNAUTHORIZED=0' "$CRON_FILE"
+    fi
+    sudo sed -i 's#/usr/bin/npm run cycle#/usr/bin/timeout 1200 /usr/bin/npm run cycle#g' "$CRON_FILE"
+  fi
+done
+
 NODE_TLS_REJECT_UNAUTHORIZED=0 npm run scheduler:status
 
-echo "=== SCOUT SYNC/SCHEDULER SOURCE CHECK ==="
-sed -n '1,240p' src/sync-approvals.js 2>/dev/null || true
-sed -n '1,260p' scripts/install-scheduler.sh 2>/dev/null || true
-
-echo "=== RUN ONE LIVE SCOUT CYCLE ==="
-NODE_TLS_REJECT_UNAUTHORIZED=0 npm run cycle
+echo "=== FOLLOWUP / DISCORD SMOKE ==="
+NODE_TLS_REJECT_UNAUTHORIZED=0 npm run followup:check
+NODE_TLS_REJECT_UNAUTHORIZED=0 npm run notify:status
 
 echo "=== NADMO SCOUT CORE RUNTIME CHECK ==="
 node -e "const p=require('./package.json'); console.log(JSON.stringify({name:p.name,version:p.version,scripts:p.scripts},null,2))" || true
