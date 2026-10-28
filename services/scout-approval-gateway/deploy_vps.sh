@@ -150,7 +150,7 @@ else
   printf 'SCOUT_APPROVAL_BASE_URL=%s\n' "$NEW_BASE" | sudo tee "$SCOUT_DIR/.env" >/dev/null
 fi
 
-curl -fsS "https://$DOMAIN/scout-approval/api/_healthcheck"
+curl -kfsS "https://$DOMAIN/scout-approval/api/_healthcheck"
 echo
 cd "$SCOUT_DIR"
 npm run sync:approvals
