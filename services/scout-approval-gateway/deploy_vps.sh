@@ -13,7 +13,33 @@ sudo rsync -a --delete --exclude data "$SRC_DIR/" "$APP_DIR/"
 sudo mkdir -p "$APP_DIR/data"
 
 cd "$APP_DIR"
-sudo docker compose up -d --build
+if command -v docker >/dev/null 2>&1; then
+  sudo docker compose up -d --build
+else
+  echo "Docker not found; installing Scout as systemd service"
+  sudo tee /etc/systemd/system/nadmo-scout-approval-gateway.service >/dev/null <<'UNIT'
+[Unit]
+Description=NADMO Scout Approval Gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/nadmo/scout-approval-gateway
+Environment=PORT=8788
+Environment=DB_PATH=/opt/nadmo/scout-approval-gateway/data/scout-approval.sqlite3
+ExecStart=/usr/bin/python3 /opt/nadmo/scout-approval-gateway/server.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now nadmo-scout-approval-gateway.service
+  sudo systemctl restart nadmo-scout-approval-gateway.service
+  sudo systemctl --no-pager --full status nadmo-scout-approval-gateway.service | head -n 30
+fi
 
 sudo mkdir -p /etc/nginx/snippets
 sudo cp "$APP_DIR/nginx-scout-approval.conf" "$NGINX_SNIPPET"
