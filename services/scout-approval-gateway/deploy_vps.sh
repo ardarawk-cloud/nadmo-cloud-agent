@@ -46,8 +46,22 @@ sudo cp "$APP_DIR/nginx-scout-approval.conf" "$NGINX_SNIPPET"
 
 CONF="$(sudo grep -RIlE "server_name[^;]*agent\.nadmo\.id" /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null | head -n1 || true)"
 if [ -z "$CONF" ]; then
-  echo "Could not find existing nginx server block for $DOMAIN"
-  exit 3
+  echo "No nginx server block found for $DOMAIN; creating one"
+  CONF="/etc/nginx/sites-available/agent.nadmo.id"
+  sudo tee "$CONF" >/dev/null <<'NGINX'
+server {
+    listen 80;
+    listen [::]:80;
+    server_name agent.nadmo.id;
+
+    location / {
+        return 404;
+    }
+
+    include /etc/nginx/snippets/scout-approval-gateway.conf;
+}
+NGINX
+  sudo ln -sf "$CONF" /etc/nginx/sites-enabled/agent.nadmo.id
 fi
 
 if ! sudo grep -q "snippets/scout-approval-gateway.conf" "$CONF"; then
@@ -91,6 +105,18 @@ if ! sudo nginx -t; then
   exit 4
 fi
 
+sudo systemctl reload nginx
+
+if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+  if ! command -v certbot >/dev/null 2>&1; then
+    sudo apt-get update -qq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq certbot python3-certbot-nginx
+  fi
+  sudo certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email --redirect
+else
+  sudo certbot install --cert-name "$DOMAIN" >/dev/null 2>&1 || true
+fi
+sudo nginx -t
 sudo systemctl reload nginx
 
 if [ -f "$SCOUT_DIR/.env" ]; then
