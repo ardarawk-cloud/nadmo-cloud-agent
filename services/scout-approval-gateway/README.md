@@ -8,3 +8,6 @@ Public path: https://agent.nadmo.id/scout-approval/
 
 The visual UI, WhatsApp validation, approval flow, sales pipeline stages,
 follow-up behavior, and status payloads are preserved.
+
+
+<!-- redeploy: restore agent.nadmo.id and NADMO Scout 2026-10-29 -->
