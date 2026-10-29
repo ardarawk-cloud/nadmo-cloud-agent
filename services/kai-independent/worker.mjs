@@ -1,3 +1,4 @@
+import { renderUI } from './web-ui.mjs';
 // KAI Independent v0.1 — isolated service; does not modify ACC OS X or the HQ frontend.
 const MODEL = '@cf/meta/llama-3.2-3b-instruct';
 const DIVISIONS = new Set(['acc-core', 'nadmo-studio', 'distorsi-rakyat']);
@@ -16,6 +17,29 @@ function reply(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });
 }
 function bad(message, status = 400) { return reply({ error: message }, status); }
+function htmlPage(nonce) {
+  const policy = ["default-src 'none'", "style-src 'nonce-" + nonce + "'", "script-src 'nonce-" + nonce + "'", "connect-src 'self'", "frame-ancestors 'none'", "base-uri 'none'", "form-action 'self'"].join('; ');
+  return new Response(renderUI(nonce), { headers: {
+    'content-type':'text/html; charset=utf-8', 'content-security-policy':policy,
+    'cache-control':'no-store', 'x-content-type-options':'nosniff',
+    'referrer-policy':'no-referrer', 'x-frame-options':'DENY'
+  } });
+}
+async function accessOwner(ctx, env) {
+  if (!ctx?.access || !value(env.OWNER_EMAIL, 254)) return null;
+  try {
+    const id = await ctx.access.getIdentity();
+    const email = id?.email;
+    return typeof email === 'string' && email.toLowerCase() === env.OWNER_EMAIL.trim().toLowerCase() ? email : null;
+  } catch { return null; }
+}
+function sameOriginAllowed(request, url) {
+  const origin = request.headers.get('origin');
+  const site = request.headers.get('sec-fetch-site');
+  return (!origin || origin === url.origin) && (!site || site === 'same-origin' || site === 'none');
+}
+function validThread(v) { return value(v, 80) && /^[\\w-]+$/.test(v); }
+
 function validDivision(v) { return typeof v === 'string' && DIVISIONS.has(v); }
 function value(v, limit) { return typeof v === 'string' && v.trim().length > 0 && v.trim().length <= limit; }
 function now() { return new Date().toISOString(); }
@@ -63,18 +87,34 @@ function aiText(modelResult) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/$/, '') || '/';
-    if (request.method === 'GET' && path === '/health') return reply({ ok: true, service: 'kai-independent', version: '0.1.0', mode: 'isolated' });
+    if (request.method === 'GET' && path === '/health') return reply({ ok: true, service: 'kai-independent', version: '0.2.0', mode: 'isolated' });
     if (request.method === 'OPTIONS') return bad('cors_disabled', 403);
-    const access = await authorized(request, env);
+    const ownerEmail = await accessOwner(ctx, env);
+    if (request.method === 'GET' && (path === '/' || path === '/app')) {
+      if (!ownerEmail) return bad('access_login_required', 401);
+      const bytes = crypto.getRandomValues(new Uint8Array(16));
+      const nonce = btoa(String.fromCharCode(...bytes));
+      return htmlPage(nonce);
+    }
+    if (request.method === 'GET' && path === '/session') {
+      return ownerEmail ? reply({authenticated:true, role:'OWNER', email:ownerEmail}) : bad('access_login_required', 401);
+    }
+    const access = ownerEmail ? true : await authorized(request, env);
     if (access === 'not_configured') return bad('owner_token_not_configured', 503);
     if (!access) return bad('unauthorized', 401);
     if (!env.DB) return bad('database_not_configured', 503);
     if (!env.AI && path === '/chat') return bad('ai_not_configured', 503);
-
+    if (!sameOriginAllowed(request, url) && !['GET','HEAD'].includes(request.method)) return bad('cross_origin_denied', 403);
     try {
+      if (request.method === 'GET' && path === '/history') {
+        const division = divisionFromUrl(url), thread = url.searchParams.get('thread_id') || 'main';
+        if (!division || !validThread(thread)) return bad('invalid_history');
+        const rows = await env.DB.prepare('SELECT role, content, created_at FROM messages WHERE division = ? AND thread_id = ? ORDER BY rowid DESC LIMIT 60').bind(division, thread).all();
+        return reply({ division, thread_id:thread, messages:(rows.results || []).reverse() });
+      }
       if (request.method === 'GET' && path === '/memory') {
         const division = divisionFromUrl(url);
         if (!division) return bad('invalid_division');
@@ -113,7 +153,7 @@ export default {
         const b = await parseBody(request);
         if (!validDivision(b.division) || !value(b.message, 4000)) return bad('invalid_chat');
         const thread = b.thread_id === undefined ? 'main' : b.thread_id;
-        if (!value(thread, 80) || !/^[\w-]+$/.test(thread)) return bad('invalid_thread');
+        if (!validThread(thread)) return bad('invalid_thread');
         const ids = b.evidence_ids === undefined ? [] : b.evidence_ids;
         if (!Array.isArray(ids) || ids.length > MAX_EVIDENCE || new Set(ids).size !== ids.length) return bad('invalid_evidence_ids');
         const sources = await listEvidence(env, b.division, ids);
