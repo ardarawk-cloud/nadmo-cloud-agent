@@ -4,6 +4,20 @@
 
 This is an **isolated** AI lab under the existing `nadmo-cloud-agent` repository. ACC OS X, `services/kai-core`, and `hq.nadmo.id` remain unchanged. Its GitHub PR is intentionally a draft.
 
+## KAI Master Knowledge v0.3 (branch, pending deployment)
+
+The old v0.2 browser displayed an invented explanation of ACC/NADMO. Root cause: small chat model had no authoritative company knowledge, and its existing conversations preserve the wrong answer.
+
+- `master-knowledge.mjs` is versioned owner-confirmed canon (ACC = Arda Core Corporation; PT Nadmo Studio Indonesia; Arda = Owner; KAI Prime vs KAI ONE CTO; AM STUDIO vs NADMO Studio; independent evidence-first editorial principles).
+- The branch now uses `@cf/qwen/qwen3-30b-a3b-fp8` and parses ChatCompletion responses.
+- `GET /master?division=...` and a read-only Master Canon tab reveal the knowledge source separately from user-editable memory.
+- A direct Cloudflare Workers AI API test of Qwen3 with the canon returned the correct ACC/NADMO identity.
+- Local mocked regression tests cover canonical facts, Qwen response shape, previous erroneous-history priority and owner-only master visibility.
+
+**Deployment state:** the v0.3 multi-module Worker upload was blocked by the deployment tool; therefore the deployed Worker has NOT been confirmed upgraded. No claim of live Qwen3 or live Master tab is made.
+
+**Immediate verified mitigation (30 Oct 2026 WITA):** Four D1 memory entries (master identity, company/role correction, division context, and integrity rule) were written to each of the three division passports, all twelve entries verified. This improves the currently running v0.2 Llama chat, but cannot guarantee it never fabricates relationships or roles. Prefer a fresh thread rather than reusing the incorrect earlier reply.
+
 ## Private owner UI
 
 Open the URL in a browser. Cloudflare Access requires the designated Cloudflare-account identity to sign in. Other identities are excluded by an exact-email Access policy attached to the **Worker** (not just a path). The Worker additionally validates the authenticated `ctx.access.getIdentity().email` against its server-side `OWNER_EMAIL` secret and refuses to serve the UI otherwise.
