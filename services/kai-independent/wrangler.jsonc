@@ -8,7 +8,7 @@
     {
       "binding": "DB",
       "database_name": "kai-independent-lab",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "8642ea50-2e0c-45b0-9180-2b5093e30647",
       "migrations_dir": "migrations"
     }
   ]
