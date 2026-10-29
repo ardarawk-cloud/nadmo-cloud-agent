@@ -1,5 +1,5 @@
 import { renderUI } from './web-ui.mjs';
-import { canonFor, MASTER_VERSION } from './master-knowledge.mjs';
+import { canonFor, MASTER_VERSION, MASTER_CORE, DIVISION_CANON } from './master-knowledge.mjs';
 // KAI Independent v0.1 — isolated service; does not modify ACC OS X or the HQ frontend.
 const MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
 const DIVISIONS = new Set(['acc-core', 'nadmo-studio', 'distorsi-rakyat']);
@@ -111,6 +111,11 @@ export default {
     if (!env.AI && path === '/chat') return bad('ai_not_configured', 503);
     if (!sameOriginAllowed(request, url) && !['GET','HEAD'].includes(request.method)) return bad('cross_origin_denied', 403);
     try {
+      if (request.method === 'GET' && path === '/master') {
+        const division = divisionFromUrl(url);
+        if (!division) return bad('invalid_division');
+        return reply({ version: MASTER_VERSION, division, locked: true, core: MASTER_CORE, division_canon: DIVISION_CANON[division] });
+      }
       if (request.method === 'GET' && path === '/history') {
         const division = divisionFromUrl(url), thread = url.searchParams.get('thread_id') || 'main';
         if (!division || !validThread(thread)) return bad('invalid_history');
