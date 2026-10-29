@@ -1,0 +1,32 @@
+name: KAI Independent Edge Access Smoke
+on:
+  push:
+    branches:
+      - feature/kai-independent-lab-v01
+    paths:
+      - .github/workflows/kai-independent-edge-smoke.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  require-login:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify unauthenticated visitor is redirected to Access
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://kai-independent-lab.ardarawk.workers.dev/"
+          code=$(curl -sS --max-time 25 --retry 1 --retry-delay 2 -D headers.txt -o body.txt -w '%{http_code}' "$url")
+          echo "HTTP code: $code"
+          grep -i '^location:' headers.txt | sed -E 's/(token|code|state)=[^&[:space:]]+/\1=REDACTED/g' || true
+          if [[ "$code" == "302" || "$code" == "303" ]]; then
+            if grep -i '^location:' headers.txt | grep -Ei '(cloudflareaccess[.]com|/cdn-cgi/access/)' >/dev/null; then
+              echo "PASS: Cloudflare Access sign-in required."
+              exit 0
+            fi
+          fi
+          echo "FAIL: Expected Cloudflare Access login redirect; cannot verify protection."
+          exit 1
