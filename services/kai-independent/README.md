@@ -21,19 +21,24 @@ npm run check
 
 The tests use Node's experimental built-in SQLite to emulate D1 and a fake model. They are **not** proof of production Cloudflare inference.
 
-## Cloudflare setup (lab only)
+## Lab deployment (29 October 2026)
 
-1. `npx wrangler d1 create kai-independent-lab` and set its returned ID in `wrangler.jsonc`.
-2. `npx wrangler d1 migrations apply kai-independent-lab --remote`.
-3. Set a randomly generated bearer secret with `npx wrangler secret put OWNER_TOKEN` (>= 32 characters). Never commit or store it in a frontend.
-4. `npx wrangler deploy` from this subdirectory. Check account-specific Workers AI billing/limits before invoking inference.
-5. Verify `/health` and unauthorized denial, then authenticate and test chat, memory, and draft flow. Keep this lab URL private until access controls and monitoring have been reviewed.
+Cloudflare API confirmed the following isolated resources in the owner's account:
 
-Example:
+- Worker: `kai-independent-lab`, bound to Workers AI, D1 and a private `OWNER_TOKEN` secret.
+- D1 database: `kai-independent-lab` (APAC), four tables created, no real user records seeded.
+- Worker deployment: active (100% of the deployed version); workers.dev subdomain enabled and preview URLs disabled.
+- Lab address: `https://kai-independent-lab.ardarawk.workers.dev`.
+
+**Important:** the deployment API and bindings were verified, but an HTTP end-to-end smoke test was **not verified**: the testing environment blocked requests to workers.dev with HTTP 403 before they reached the Worker. Do not label the AI chat or remote persistence "working" until an authenticated request succeeds from an approved client.
+
+To operate or rotate credentials, use the Cloudflare dashboard. Never print the private bearer token into a public page or source control. Before opening this to general browser use, add Cloudflare Access plus scoped sessions, request budgets, and monitoring.
+
+Example once the owner has a securely provisioned token:
 
 ```bash
-curl -s https://<lab-worker-host>/health
-curl -s -X POST https://<lab-worker-host>/chat -H "Authorization: Bearer $OWNER_TOKEN" -H "Content-Type: application/json" -d '{"division":"distorsi-rakyat","message":"Apa yang belum terverifikasi dalam sebuah laporan demo?"}'
+curl -s https://kai-independent-lab.ardarawk.workers.dev/health
+curl -s -X POST https://kai-independent-lab.ardarawk.workers.dev/chat -H "Authorization: Bearer $OWNER_TOKEN" -H "Content-Type: application/json" -d '{"division":"distorsi-rakyat","message":"Apa yang belum terverifikasi dalam sebuah laporan demo?"}'
 ```
 
 ## API
