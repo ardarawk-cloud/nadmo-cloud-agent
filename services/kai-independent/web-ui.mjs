@@ -28,18 +28,18 @@ footer{margin-top:auto;padding-top:12px;border-top:1px solid var(--border)}.dang
 <div class="layout">
 <aside class="side">
  <div class="brand">KAI <span>INDEPENDENT</span></div>
- <div class="tiny">NADMO / ACC PRIVATE LAB</div><div><span class="pill">MODEL TERBUKA · v0.2</span></div>
+ <div class="tiny">NADMO / ACC PRIVATE LAB</div><div><span class="pill">QWEN3 · MASTER v1.0 · v0.3</span></div>
  <div class="stack"><label for="division">DIVISI / PASSPORT</label>
  <select id="division" aria-label="Divisi"><option value="acc-core">ACC CORE</option><option value="nadmo-studio">NADMO STUDIO</option><option value="distorsi-rakyat">DISTORSI RAKYAT</option></select></div>
  <div class="stack"><label for="thread">ID PERCAKAPAN</label><input id="thread" value="main" maxlength="80" aria-label="ID percakapan"/></div>
- <nav class="nav stack" aria-label="Menu"><button class="menu-btn active" data-view="chat">Percakapan</button><button class="menu-btn" data-view="memory">Memori</button><button class="menu-btn" data-view="evidence">Sumber</button><button class="menu-btn" data-view="drafts">Draf</button></nav>
+ <nav class="nav stack" aria-label="Menu"><button class="menu-btn active" data-view="chat">Percakapan</button><button class="menu-btn" data-view="master">Master Canon</button><button class="menu-btn" data-view="memory">Memori</button><button class="menu-btn" data-view="evidence">Sumber</button><button class="menu-btn" data-view="drafts">Draf</button></nav>
  <button id="new-thread">+ Percakapan baru</button>
  <footer><div class="tiny" id="session">Memeriksa sesi…</div><div class="tiny">Privat · Tidak ada publish otomatis · Tidak ada riset web otomatis</div></footer>
 </aside>
 <main class="main">
  <header class="top"><div><h1 id="page-title">Percakapan KAI</h1><div class="hint">Bukti di atas narasi. Kritis, transparan, dapat diuji.</div></div><span class="pill" id="connection">MEMERIKSA</span></header>
  <section class="panel" id="chat-view"><div class="chat"><div id="messages"><div class="bubble assistant"><div class="who">KAI</div>Pilih divisi dan mulai percakapan. Aku tidak akan mengaku melakukan riset web kalau belum benar-benar dilakukan.</div></div></div></section>
- <section class="panel hidden" id="memory-view"><h2>Memori divisi</h2><div class="box"><form id="memory-form" class="stack"><label for="memory-key">Kunci memori</label><input id="memory-key" maxlength="80" required placeholder="contoh: prinsip_editorial"><label for="memory-value">Isi memori</label><textarea id="memory-value" rows="3" maxlength="2000" required placeholder="Simpan keputusan atau konteks tetap"></textarea><button type="submit">Simpan memori</button></form></div><div id="memory-items" class="box">Memuat...</div></section>
+ <section class="panel hidden" id="master-view"><h2>Master Knowledge ACC / NADMO</h2><p class="hint">Identitas organisasi resmi dari Owner. Dikunci di source code; tidak bisa diganti oleh riwayat percakapan ataupun memori biasa.</p><div id="master-items" class="box">Memuat Master Canon...</div></section>\n <section class="panel hidden" id="memory-view"><h2>Memori divisi</h2><div class="box"><form id="memory-form" class="stack"><label for="memory-key">Kunci memori</label><input id="memory-key" maxlength="80" required placeholder="contoh: prinsip_editorial"><label for="memory-value">Isi memori</label><textarea id="memory-value" rows="3" maxlength="2000" required placeholder="Simpan keputusan atau konteks tetap"></textarea><button type="submit">Simpan memori</button></form></div><div id="memory-items" class="box">Memuat...</div></section>
  <section class="panel hidden" id="evidence-view"><h2>Daftar sumber</h2><p class="hint">Sumber yang dimasukkan di sini BELUM diverifikasi independen. Pilih ID sumber saat mengobrol untuk melampirkannya.</p><div class="box"><form id="evidence-form" class="stack"><label for="ev-title">Judul</label><input id="ev-title" maxlength="200" required><label for="ev-url">URL sumber HTTPS</label><input id="ev-url" type="url" pattern="https://.*" required><label for="ev-excerpt">Catatan/kutipan</label><textarea id="ev-excerpt" rows="4" maxlength="3500" required></textarea><button type="submit">Catat sumber</button></form></div><div id="evidence-items" class="box">Memuat...</div></section>
  <section class="panel hidden" id="drafts-view"><h2>Approval draf</h2><p class="hint">Persetujuan internal BUKAN bukti telah dipublikasikan.</p><div class="box"><form id="draft-form" class="stack"><label for="draft-title">Judul</label><input id="draft-title" maxlength="200" required><label for="draft-content">Isi draf</label><textarea id="draft-content" rows="7" maxlength="12000" required></textarea><button type="submit">Simpan draf untuk persetujuan</button></form></div><div id="draft-items" class="box">Memuat...</div></section>
  <div id="notice" role="status" aria-live="polite"></div>
@@ -49,9 +49,9 @@ footer{margin-top:auto;padding-top:12px;border-top:1px solid var(--border)}.dang
 <script nonce="NONCE_PLACEHOLDER">
 'use strict';
 const $ = id => document.getElementById(id);
-const views = ['chat','memory','evidence','drafts'];
+const views = ['chat','master','memory','evidence','drafts'];
 let current = 'chat';
-const titles = { chat:'Percakapan KAI',memory:'Memori KAI',evidence:'Referensi & bukti',drafts:'Draf & persetujuan' };
+const titles = { chat:'Percakapan KAI',master:'Master Knowledge KAI',memory:'Memori KAI',evidence:'Referensi & bukti',drafts:'Draf & persetujuan' };
 let busy=false;
 function node(tag,txt,cls){const e=document.createElement(tag);if(txt!==undefined)e.textContent=txt;if(cls)e.className=cls;return e}
 function clear(el){el.replaceChildren()}
@@ -72,7 +72,7 @@ function show(view){
  $('page-title').textContent=titles[view];
  notice('');
  if(view==='chat')loadHistory();
- if(view==='memory')loadMemories();
+ if(view==='master')loadMaster();\n if(view==='memory')loadMemories();
  if(view==='evidence')loadEvidence();
  if(view==='drafts')loadDrafts();
 }
@@ -89,6 +89,17 @@ async function loadHistory(){
  if(!(r.messages||[]).length)renderMessage('assistant','Percakapan baru. Apa yang ingin kita kerjakan?');
  else for(const m of r.messages)renderMessage(m.role,m.content);
  }catch(e){notice('Riwayat: '+e.message,true)}
+}
+async function loadMaster(){
+ try {
+   const r=await api('/master?division='+encodeURIComponent(division()));
+   const target=$('master-items'); clear(target);
+   target.append(node('div','MASTER v'+r.version+' · LOCKED','pill'));
+   const core=node('pre',r.core); target.append(core);
+   const box=node('div',undefined,'data-row');
+   box.append(node('strong','DIVISI: '+r.division.toUpperCase()),node('pre',r.division_canon));
+   target.append(box);
+ }catch(e){notice('Master Canon: '+e.message,true)}
 }
 async function loadMemories(){
  try{
