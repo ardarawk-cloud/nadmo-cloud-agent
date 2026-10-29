@@ -1,3 +1,4 @@
+import { Script } from 'node:vm';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../worker.mjs';
@@ -41,4 +42,23 @@ test('cross-origin requests with Access identity are rejected even if allowed by
  const r=await handler.fetch(req,{...env,DB:{}},ctx('owner@example.com'));
  assert.equal(r.status,403);
  assert.equal((await r.json()).error,'cross_origin_denied');
+});
+
+test('rendered owner console JavaScript parses cleanly with Master tab',()=>{
+ const html=renderUI('test-nonce-123');
+ const script=html.match(/<script nonce="test-nonce-123">([\\s\\S]*?)<\\/script>/);
+ assert.ok(script,'UI inline script must be present');
+ assert.doesNotThrow(()=>new Script(script[1]));
+ assert.match(html,/data-view="master"/);
+ assert.match(html,/Master Knowledge ACC/);
+});
+test('verified owner can inspect locked master canon through API',async()=>{
+ const r=await handler.fetch(get('/master?division=acc-core'),{...env,DB:{}},ctx('owner@example.com'));
+ assert.equal(r.status,200);
+ const body=await r.json();
+ assert.equal(body.version,'1.0.0');
+ assert.equal(body.locked,true);
+ assert.match(body.core,/ARDA CORE CORPORATION/);
+ assert.match(body.core,/PT Nadmo Studio Indonesia/);
+ assert.equal((await handler.fetch(get('/master?division=acc-core'),{...env,DB:{}})).status,401);
 });
