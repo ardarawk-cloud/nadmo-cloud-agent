@@ -68,7 +68,7 @@ test('chat calls model and stores thread history; never claims live web search',
   assert.equal(r.web_search_performed,false);
   assert.match(r.reply,/belum terverifikasi/);
   assert.equal(env.calls.length,1);
-  assert.equal(env.calls[0].model,'@cf/meta/llama-3.2-3b-instruct');
+  assert.equal(env.calls[0].model,'@cf/qwen/qwen3-30b-a3b-fp8');
   await call(env,'/chat','POST',{division:'distorsi-rakyat',message:'Lanjutkan',thread_id:'investigasi'});
   assert.equal(env.calls[1].payload.messages.some(m=>m.role==='assistant'),true);
   await call(env,'/chat','POST',{division:'acc-core',message:'Pekerjaan lain',thread_id:'investigasi'});
