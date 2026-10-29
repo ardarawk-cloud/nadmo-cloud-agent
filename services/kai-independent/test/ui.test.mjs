@@ -46,9 +46,11 @@ test('cross-origin requests with Access identity are rejected even if allowed by
 
 test('rendered owner console JavaScript parses cleanly with Master tab',()=>{
  const html=renderUI('test-nonce-123');
- const script=html.match(/<script nonce="test-nonce-123">([\\s\\S]*?)<\\/script>/);
- assert.ok(script,'UI inline script must be present');
- assert.doesNotThrow(()=>new Script(script[1]));
+ const openTag='<script nonce="test-nonce-123">';
+ const start=html.indexOf(openTag);
+ const end=html.indexOf('</script>',start);
+ assert.ok(start>=0 && end>start,'UI inline script must be present');
+ assert.doesNotThrow(()=>new Script(html.slice(start+openTag.length,end)));
  assert.match(html,/data-view="master"/);
  assert.match(html,/Master Knowledge ACC/);
 });
