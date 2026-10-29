@@ -38,7 +38,7 @@ function sameOriginAllowed(request, url) {
   const site = request.headers.get('sec-fetch-site');
   return (!origin || origin === url.origin) && (!site || site === 'same-origin' || site === 'none');
 }
-function validThread(v) { return value(v, 80) && /^[\\w-]+$/.test(v); }
+function validThread(v) { return value(v, 80) && /^[\w-]+$/.test(v); }
 
 function validDivision(v) { return typeof v === 'string' && DIVISIONS.has(v); }
 function value(v, limit) { return typeof v === 'string' && v.trim().length > 0 && v.trim().length <= limit; }
