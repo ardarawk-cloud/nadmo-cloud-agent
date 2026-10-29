@@ -39,7 +39,8 @@ footer{margin-top:auto;padding-top:12px;border-top:1px solid var(--border)}.dang
 <main class="main">
  <header class="top"><div><h1 id="page-title">Percakapan KAI</h1><div class="hint">Bukti di atas narasi. Kritis, transparan, dapat diuji.</div></div><span class="pill" id="connection">MEMERIKSA</span></header>
  <section class="panel" id="chat-view"><div class="chat"><div id="messages"><div class="bubble assistant"><div class="who">KAI</div>Pilih divisi dan mulai percakapan. Aku tidak akan mengaku melakukan riset web kalau belum benar-benar dilakukan.</div></div></div></section>
- <section class="panel hidden" id="master-view"><h2>Master Knowledge ACC / NADMO</h2><p class="hint">Identitas organisasi resmi dari Owner. Dikunci di source code; tidak bisa diganti oleh riwayat percakapan ataupun memori biasa.</p><div id="master-items" class="box">Memuat Master Canon...</div></section>\n <section class="panel hidden" id="memory-view"><h2>Memori divisi</h2><div class="box"><form id="memory-form" class="stack"><label for="memory-key">Kunci memori</label><input id="memory-key" maxlength="80" required placeholder="contoh: prinsip_editorial"><label for="memory-value">Isi memori</label><textarea id="memory-value" rows="3" maxlength="2000" required placeholder="Simpan keputusan atau konteks tetap"></textarea><button type="submit">Simpan memori</button></form></div><div id="memory-items" class="box">Memuat...</div></section>
+ <section class="panel hidden" id="master-view"><h2>Master Knowledge ACC / NADMO</h2><p class="hint">Identitas organisasi resmi dari Owner. Dikunci di source code; tidak bisa diganti oleh riwayat percakapan ataupun memori biasa.</p><div id="master-items" class="box">Memuat Master Canon...</div></section>
+ <section class="panel hidden" id="memory-view"><h2>Memori divisi</h2><div class="box"><form id="memory-form" class="stack"><label for="memory-key">Kunci memori</label><input id="memory-key" maxlength="80" required placeholder="contoh: prinsip_editorial"><label for="memory-value">Isi memori</label><textarea id="memory-value" rows="3" maxlength="2000" required placeholder="Simpan keputusan atau konteks tetap"></textarea><button type="submit">Simpan memori</button></form></div><div id="memory-items" class="box">Memuat...</div></section>
  <section class="panel hidden" id="evidence-view"><h2>Daftar sumber</h2><p class="hint">Sumber yang dimasukkan di sini BELUM diverifikasi independen. Pilih ID sumber saat mengobrol untuk melampirkannya.</p><div class="box"><form id="evidence-form" class="stack"><label for="ev-title">Judul</label><input id="ev-title" maxlength="200" required><label for="ev-url">URL sumber HTTPS</label><input id="ev-url" type="url" pattern="https://.*" required><label for="ev-excerpt">Catatan/kutipan</label><textarea id="ev-excerpt" rows="4" maxlength="3500" required></textarea><button type="submit">Catat sumber</button></form></div><div id="evidence-items" class="box">Memuat...</div></section>
  <section class="panel hidden" id="drafts-view"><h2>Approval draf</h2><p class="hint">Persetujuan internal BUKAN bukti telah dipublikasikan.</p><div class="box"><form id="draft-form" class="stack"><label for="draft-title">Judul</label><input id="draft-title" maxlength="200" required><label for="draft-content">Isi draf</label><textarea id="draft-content" rows="7" maxlength="12000" required></textarea><button type="submit">Simpan draf untuk persetujuan</button></form></div><div id="draft-items" class="box">Memuat...</div></section>
  <div id="notice" role="status" aria-live="polite"></div>
@@ -72,7 +73,8 @@ function show(view){
  $('page-title').textContent=titles[view];
  notice('');
  if(view==='chat')loadHistory();
- if(view==='master')loadMaster();\n if(view==='memory')loadMemories();
+ if(view==='master')loadMaster();
+ if(view==='memory')loadMemories();
  if(view==='evidence')loadEvidence();
  if(view==='drafts')loadDrafts();
 }
