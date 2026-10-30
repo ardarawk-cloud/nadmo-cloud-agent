@@ -314,4 +314,8 @@ sudo systemctl --no-pager --type=service --all | grep -Ei 'nadmo|scout' || true
 if command -v pm2 >/dev/null 2>&1; then pm2 jlist || true; fi
 crontab -l 2>/dev/null | grep -Ei 'nadmo|scout|lead|summary|follow' || true
 
+echo "=== QC SCOUT ROUTING / HUNT ==="
+sed -n '1,55p' "$SCOUT_DIR/src/hunt-cli.js" || true
+grep -nE 'Route:|Open Email Draft|Open Instagram|Qualified leads are auto-approved' "$SCOUT_DIR/src/notify-discord.js" || true
+
 echo "Scout Approval Gateway migrated successfully"
