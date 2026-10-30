@@ -180,6 +180,12 @@ sudo systemctl --no-pager --type=service --all | grep -Ei 'nadmo|scout' || true
 if command -v pm2 >/dev/null 2>&1; then pm2 jlist || true; fi
 crontab -l 2>/dev/null | grep -Ei 'nadmo|scout|lead|summary|follow' || true
 
+echo "=== SCOUT OUTBOUND CAPABILITY CHECK ==="
+if [ -f "$SCOUT_DIR/.env" ]; then
+  cut -d= -f1 "$SCOUT_DIR/.env" | grep -Ei '^(SMTP|EMAIL|MAIL|GMAIL|META|WHATSAPP|WA_|WABA|TWILIO|DISCORD|SERPER|SCOUT_)' | sort -u || true
+fi
+node -e "try{const p=require('./package.json'); console.log(JSON.stringify({dependencies:p.dependencies||{},devDependencies:p.devDependencies||{}},null,2))}catch(e){}" || true
+
 echo "=== SCOUT AUTOMATION SOURCE SNAPSHOT ==="
 for F in src/hunt-cli.js src/notify-discord.js src/followup-discord.js src/campaign-cli.js src/sync-approvals.js src/db.js src/config.js; do
   echo "===== $F ====="
