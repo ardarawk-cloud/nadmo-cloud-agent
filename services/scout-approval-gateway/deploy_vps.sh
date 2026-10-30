@@ -249,7 +249,7 @@ notify_path.write_text(s)
 
 h=hunt_path.read_text()
 h=re.sub(
-    r'''const AREAS = \\[.*?\\];''',
+    r'''const AREAS = \[.*?\];''',
     '''const AREAS = [
   "Denpasar, Bali, Indonesia",
   "Kuta, Bali, Indonesia",
@@ -262,7 +262,7 @@ h=re.sub(
     flags=re.S
 )
 h=re.sub(
-    r'''const CATEGORIES = \\[.*?\\];''',
+    r'''const CATEGORIES = \[.*?\];''',
     '''const CATEGORIES = [
   "villa",
   "guest house",
