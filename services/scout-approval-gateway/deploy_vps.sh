@@ -195,6 +195,8 @@ curl -kfsS "https://$DOMAIN/scout-approval/api/_healthcheck"
 echo
 cd "$SCOUT_DIR"
 NODE_TLS_REJECT_UNAUTHORIZED=0 npm run sync:approvals
+NODE_TLS_REJECT_UNAUTHORIZED=0 npm run auto:approve
+NODE_TLS_REJECT_UNAUTHORIZED=0 npm run sync:approvals
 NODE_TLS_REJECT_UNAUTHORIZED=0 npm run scheduler:install
 
 # Make scheduled cycles inherit the gateway TLS setting and never hang forever.
