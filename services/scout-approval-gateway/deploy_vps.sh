@@ -153,13 +153,14 @@ fi
 echo "=== INSTALL SCOUT AUTO-APPROVAL ROUTER ==="
 sudo install -m 0644 "$APP_DIR/scout-core-overrides/auto-approve.js" "$SCOUT_DIR/src/auto-approve.js"
 
-sudo python3 - "$SCOUT_DIR/.env" "$SCOUT_DIR/package.json" "$SCOUT_DIR/src/notify-discord.js" <<'PY'
+sudo python3 - "$SCOUT_DIR/.env" "$SCOUT_DIR/package.json" "$SCOUT_DIR/src/notify-discord.js" "$SCOUT_DIR/src/hunt-cli.js" <<'PY'
 from pathlib import Path
-import json, sys
+import json, re, sys
 
 env_path=Path(sys.argv[1])
 pkg_path=Path(sys.argv[2])
 notify_path=Path(sys.argv[3])
+hunt_path=Path(sys.argv[4])
 
 lines=env_path.read_text().splitlines() if env_path.exists() else []
 out=[]
@@ -188,7 +189,97 @@ s=s.replace(
     "Approve outreach, then update the pipeline stage directly from Discord.",
     "Qualified leads are auto-approved. Use the routed contact action, then update the pipeline stage directly from Discord."
 )
+
+if "function emailUrl(" not in s:
+    needle='''function whatsappUrl(phone) {
+  const digits = normalizeWhatsappMobile(phone);
+  return digits ? `https://wa.me/${digits}` : null;
+}
+'''
+    extra='''function whatsappUrl(phone) {
+  const digits = normalizeWhatsappMobile(phone);
+  return digits ? `https://wa.me/${digits}` : null;
+}
+
+function emailUrl(email, draft) {
+  if (!email) return null;
+  const subject = "Website untuk bisnis Anda — NADMO Studio";
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(draft)}`;
+}
+
+function instagramUrl(instagram) {
+  if (!instagram) return null;
+  const raw = String(instagram).trim();
+  if (/^https?:\\/\\//i.test(raw)) return raw;
+  const username = raw
+    .replace(/^@/, "")
+    .replace(/^instagram\\.com\\//i, "")
+    .split(/[/?#]/)[0];
+  return username ? `https://instagram.com/${encodeURIComponent(username)}` : null;
+}
+'''
+    s=s.replace(needle, extra)
+
+s=s.replace(
+'''  const approveUrl = approveWhatsappUrl(lead, draft);
+  const contactedUrl = stageUrl(lead, "CONTACTED");''',
+'''  const approveUrl = approveWhatsappUrl(lead, draft);
+  const emailAction = emailUrl(lead.email, draft);
+  const instagramAction = instagramUrl(lead.instagram);
+  const contactedUrl = stageUrl(lead, "CONTACTED");'''
+)
+
+old_action='''    approveUrl
+      ? `**Action:** [📲 Open WhatsApp & Send](${approveUrl})`
+      : lead.phone
+        ? "**Manual exception:** ☎️ Phone only — call manually."
+        : null,'''
+new_action='''    wa ? "**Route:** WHATSAPP" : emailAction ? "**Route:** EMAIL" : instagramAction ? "**Route:** INSTAGRAM" : lead.phone ? "**Route:** PHONE / MANUAL" : null,
+    approveUrl
+      ? `**Action:** [📲 Open WhatsApp & Send](${approveUrl})`
+      : emailAction
+        ? `**Action:** [✉️ Open Email Draft](${emailAction})`
+        : instagramAction
+          ? `**Action:** [📩 Open Instagram](${instagramAction})`
+          : lead.phone
+            ? "**Manual exception:** ☎️ Phone only — call manually."
+            : null,'''
+s=s.replace(old_action, new_action)
 notify_path.write_text(s)
+
+h=hunt_path.read_text()
+h=re.sub(
+    r'''const AREAS = \\[.*?\\];''',
+    '''const AREAS = [
+  "Denpasar, Bali, Indonesia",
+  "Kuta, Bali, Indonesia",
+  "Canggu, Bali, Indonesia",
+  "Ubud, Bali, Indonesia",
+  "Tabanan, Bali, Indonesia"
+];''',
+    h,
+    count=1,
+    flags=re.S
+)
+h=re.sub(
+    r'''const CATEGORIES = \\[.*?\\];''',
+    '''const CATEGORIES = [
+  "villa",
+  "guest house",
+  "wedding planner",
+  "makeup artist",
+  "beauty salon",
+  "spa",
+  "cafe",
+  "restaurant",
+  "dentist",
+  "car rental"
+];''',
+    h,
+    count=1,
+    flags=re.S
+)
+hunt_path.write_text(h)
 PY
 
 curl -kfsS "https://$DOMAIN/scout-approval/api/_healthcheck"
@@ -222,17 +313,5 @@ find src -maxdepth 1 -type f -printf '%f\n' 2>/dev/null | sort | sed -n '1,120p'
 sudo systemctl --no-pager --type=service --all | grep -Ei 'nadmo|scout' || true
 if command -v pm2 >/dev/null 2>&1; then pm2 jlist || true; fi
 crontab -l 2>/dev/null | grep -Ei 'nadmo|scout|lead|summary|follow' || true
-
-echo "=== SCOUT OUTBOUND CAPABILITY CHECK ==="
-if [ -f "$SCOUT_DIR/.env" ]; then
-  cut -d= -f1 "$SCOUT_DIR/.env" | grep -Ei '^(SMTP|EMAIL|MAIL|GMAIL|META|WHATSAPP|WA_|WABA|TWILIO|DISCORD|SERPER|SCOUT_)' | sort -u || true
-fi
-node -e "try{const p=require('./package.json'); console.log(JSON.stringify({dependencies:p.dependencies||{},devDependencies:p.devDependencies||{}},null,2))}catch(e){}" || true
-
-echo "=== SCOUT AUTOMATION SOURCE SNAPSHOT ==="
-for F in src/hunt-cli.js src/notify-discord.js src/followup-discord.js src/campaign-cli.js src/sync-approvals.js src/db.js src/config.js; do
-  echo "===== $F ====="
-  sed -n '1,320p' "$F" 2>/dev/null || true
-done
 
 echo "Scout Approval Gateway migrated successfully"
