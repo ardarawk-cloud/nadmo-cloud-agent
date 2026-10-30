@@ -180,4 +180,10 @@ sudo systemctl --no-pager --type=service --all | grep -Ei 'nadmo|scout' || true
 if command -v pm2 >/dev/null 2>&1; then pm2 jlist || true; fi
 crontab -l 2>/dev/null | grep -Ei 'nadmo|scout|lead|summary|follow' || true
 
+echo "=== SCOUT AUTOMATION SOURCE SNAPSHOT ==="
+for F in src/hunt-cli.js src/notify-discord.js src/followup-discord.js src/campaign-cli.js src/sync-approvals.js src/db.js src/config.js; do
+  echo "===== $F ====="
+  sed -n '1,320p' "$F" 2>/dev/null || true
+done
+
 echo "Scout Approval Gateway migrated successfully"
