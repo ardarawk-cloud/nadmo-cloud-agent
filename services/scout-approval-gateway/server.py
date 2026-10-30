@@ -11,7 +11,7 @@ HOST = '0.0.0.0'
 PORT = int(os.environ.get('PORT', '8788'))
 DB_PATH = os.environ.get('DB_PATH', '/data/scout-approval.sqlite3')
 PUBLIC_DIR = Path(__file__).parent / 'public'
-STAGES = {'CONTACTED', 'REPLIED', 'INTERESTED', 'PROPOSAL', 'WON', 'LOST'}
+STAGES = {'APPROVED', 'CONTACTED', 'REPLIED', 'INTERESTED', 'PROPOSAL', 'WON', 'LOST'}
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
@@ -61,7 +61,7 @@ def record_event(lead_id, name, status, phone=''):
     return True
 
 def valid_event(event):
-    if event['status'] in ('APPROVED', 'FOLLOW_UP_SENT'):
+    if event['status'] == 'FOLLOW_UP_SENT':
         return normalize_whatsapp(event['phone']) is not None
     return True
 
