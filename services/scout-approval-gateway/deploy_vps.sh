@@ -150,6 +150,47 @@ else
   printf 'SCOUT_APPROVAL_BASE_URL=%s\n' "$NEW_BASE" | sudo tee "$SCOUT_DIR/.env" >/dev/null
 fi
 
+echo "=== INSTALL SCOUT AUTO-APPROVAL ROUTER ==="
+sudo install -m 0644 "$APP_DIR/scout-core-overrides/auto-approve.js" "$SCOUT_DIR/src/auto-approve.js"
+
+sudo python3 - "$SCOUT_DIR/.env" "$SCOUT_DIR/package.json" "$SCOUT_DIR/src/notify-discord.js" <<'PY'
+from pathlib import Path
+import json, sys
+
+env_path=Path(sys.argv[1])
+pkg_path=Path(sys.argv[2])
+notify_path=Path(sys.argv[3])
+
+lines=env_path.read_text().splitlines() if env_path.exists() else []
+out=[]
+seen=False
+for line in lines:
+    if line.startswith("SCOUT_AUTO_APPROVE="):
+        out.append("SCOUT_AUTO_APPROVE=true")
+        seen=True
+    else:
+        out.append(line)
+if not seen:
+    out.append("SCOUT_AUTO_APPROVE=true")
+env_path.write_text("\n".join(out)+"\n")
+
+pkg=json.loads(pkg_path.read_text())
+scripts=pkg.setdefault("scripts", {})
+scripts["auto:approve"]="node src/auto-approve.js"
+scripts["cycle"]="npm run sync:approvals && npm run followup:check && npm run hunt && npm run auto:approve && npm run sync:approvals && npm run notify"
+pkg_path.write_text(json.dumps(pkg, indent=2)+"\n")
+
+s=notify_path.read_text()
+s=s.replace("**Suggested outreach (manual review):**", "**Suggested outreach:**")
+s=s.replace("**Action:** [✅ Approve & WhatsApp]", "**Action:** [📲 Open WhatsApp & Send]")
+s=s.replace("**Action:** ☎️ Phone only — call manually.", "**Manual exception:** ☎️ Phone only — call manually.")
+s=s.replace(
+    "Approve outreach, then update the pipeline stage directly from Discord.",
+    "Qualified leads are auto-approved. Use the routed contact action, then update the pipeline stage directly from Discord."
+)
+notify_path.write_text(s)
+PY
+
 curl -kfsS "https://$DOMAIN/scout-approval/api/_healthcheck"
 echo
 cd "$SCOUT_DIR"
