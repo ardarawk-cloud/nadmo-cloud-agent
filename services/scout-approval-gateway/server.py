@@ -199,7 +199,7 @@ h1{{margin:0 0 12px;font-size:26px}}p{{line-height:1.6;color:#c9d4e5}}.ok{{color
         path = parsed.path
         query = parse_qs(parsed.query)
 
-        if path == '/api/meta-whatsapp/webhook':
+        if path in ('/api/meta-whatsapp/webhook', '/whatsapp-webhook'):
             mode = self.query_one(query, 'hub.mode')
             token = self.query_one(query, 'hub.verify_token')
             challenge = self.query_one(query, 'hub.challenge')
@@ -229,7 +229,7 @@ h1{{margin:0 0 12px;font-size:26px}}p{{line-height:1.6;color:#c9d4e5}}.ok{{color
         parsed = urlparse(self.path)
         path = parsed.path
 
-        if path != '/api/meta-whatsapp/webhook':
+        if path not in ('/api/meta-whatsapp/webhook', '/whatsapp-webhook'):
             return self.send_error_json('Not found', 404)
 
         try:
