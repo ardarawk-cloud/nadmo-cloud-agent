@@ -10,6 +10,7 @@ from urllib.parse import parse_qs, quote, urlparse
 HOST = '0.0.0.0'
 PORT = int(os.environ.get('PORT', '8788'))
 DB_PATH = os.environ.get('DB_PATH', '/data/scout-approval.sqlite3')
+META_WHATSAPP_VERIFY_TOKEN = os.environ.get('META_WHATSAPP_VERIFY_TOKEN', '')
 PUBLIC_DIR = Path(__file__).parent / 'public'
 STAGES = {'APPROVED', 'CONTACTED', 'REPLIED', 'INTERESTED', 'PROPOSAL', 'WON', 'LOST'}
 
@@ -30,6 +31,18 @@ def db():
         )
     ''')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_outreach_lead_created ON outreach_events (lead_id, created_at DESC)')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS whatsapp_webhook_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type TEXT,
+            sender TEXT,
+            message_id TEXT,
+            message_text TEXT,
+            payload_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    ''')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_whatsapp_webhook_created ON whatsapp_webhook_events (created_at DESC)')
     conn.commit()
     return conn
 
@@ -63,6 +76,57 @@ def record_event(lead_id, name, status, phone=''):
 def valid_event(event):
     if event['status'] == 'FOLLOW_UP_SENT':
         return normalize_whatsapp(event['phone']) is not None
+    return True
+
+def record_whatsapp_webhook(payload):
+    event_type = None
+    sender = None
+    message_id = None
+    message_text = None
+
+    try:
+        entries = payload.get('entry') or []
+        for entry in entries:
+            for change in entry.get('changes') or []:
+                value = change.get('value') or {}
+                messages = value.get('messages') or []
+                statuses = value.get('statuses') or []
+                if messages:
+                    msg = messages[0]
+                    event_type = 'message'
+                    sender = msg.get('from')
+                    message_id = msg.get('id')
+                    if msg.get('type') == 'text':
+                        message_text = (msg.get('text') or {}).get('body')
+                    break
+                if statuses:
+                    st = statuses[0]
+                    event_type = 'status'
+                    sender = st.get('recipient_id')
+                    message_id = st.get('id')
+                    message_text = st.get('status')
+                    break
+    except Exception:
+        pass
+
+    conn = db()
+    conn.execute(
+        '''
+        INSERT INTO whatsapp_webhook_events (
+            event_type, sender, message_id, message_text, payload_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        ''',
+        (
+            event_type,
+            sender,
+            message_id,
+            message_text,
+            json.dumps(payload, separators=(',', ':')),
+            now_iso(),
+        ),
+    )
+    conn.commit()
+    conn.close()
     return True
 
 def read_status(lead_id):
@@ -135,6 +199,20 @@ h1{{margin:0 0 12px;font-size:26px}}p{{line-height:1.6;color:#c9d4e5}}.ok{{color
         path = parsed.path
         query = parse_qs(parsed.query)
 
+        if path == '/api/meta-whatsapp/webhook':
+            mode = self.query_one(query, 'hub.mode')
+            token = self.query_one(query, 'hub.verify_token')
+            challenge = self.query_one(query, 'hub.challenge')
+            if mode == 'subscribe' and META_WHATSAPP_VERIFY_TOKEN and token == META_WHATSAPP_VERIFY_TOKEN:
+                body = str(challenge).encode()
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain; charset=utf-8')
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            return self.send_error_json('Webhook verification failed', 403)
+
         if path.startswith('/api/'):
             return self.handle_api(path, query)
 
@@ -146,6 +224,27 @@ h1{{margin:0 0 12px;font-size:26px}}p{{line-height:1.6;color:#c9d4e5}}.ok{{color
             return self.send_file('app.js', 'application/javascript; charset=utf-8')
 
         self.send_error_json('Not found', 404)
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+
+        if path != '/api/meta-whatsapp/webhook':
+            return self.send_error_json('Not found', 404)
+
+        try:
+            length = int(self.headers.get('Content-Length', '0') or '0')
+            raw = self.rfile.read(length) if length > 0 else b'{}'
+            payload = json.loads(raw.decode('utf-8'))
+        except Exception as error:
+            return self.send_error_json(f'Invalid JSON: {error}', 400)
+
+        try:
+            record_whatsapp_webhook(payload)
+        except Exception as error:
+            print(f'Failed to persist WhatsApp webhook: {error}', flush=True)
+
+        return self.send_json({'received': True}, 200)
 
     def send_file(self, name, content_type):
         target = PUBLIC_DIR / name
