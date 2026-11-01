@@ -285,6 +285,10 @@ PY
 
 curl -kfsS "https://$DOMAIN/scout-approval/api/_healthcheck"
 echo
+VERIFY_CHALLENGE="987654"
+VERIFY_RESULT="$(curl -kfsS "https://$DOMAIN/scout-approval/api/meta-whatsapp/webhook?hub.mode=subscribe&hub.verify_token=nadmo-scout-meta-verify-2026&hub.challenge=$VERIFY_CHALLENGE")"
+echo "Meta webhook handshake response: $VERIFY_RESULT"
+test "$VERIFY_RESULT" = "$VERIFY_CHALLENGE"
 cd "$SCOUT_DIR"
 NODE_TLS_REJECT_UNAUTHORIZED=0 npm run sync:approvals
 NODE_TLS_REJECT_UNAUTHORIZED=0 npm run auto:approve
