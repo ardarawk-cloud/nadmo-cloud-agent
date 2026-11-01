@@ -28,7 +28,7 @@ Type=simple
 WorkingDirectory=/opt/nadmo/scout-approval-gateway
 Environment=PORT=8788
 Environment=DB_PATH=/opt/nadmo/scout-approval-gateway/data/scout-approval.sqlite3
-Environment=META_WHATSAPP_VERIFY_TOKEN=nadmo-scout-meta-verify-2026
+Environment=META_WHATSAPP_VERIFY_TOKEN=nadmo2026
 ExecStart=/usr/bin/python3 /opt/nadmo/scout-approval-gateway/server.py
 Restart=always
 RestartSec=3
@@ -58,6 +58,8 @@ if sudo systemctl is-active --quiet apache2; then
     RewriteRule ^/scout-approval$ /scout-approval/ [R=301,L]
     ProxyPass /scout-approval/ http://127.0.0.1:8788/
     ProxyPassReverse /scout-approval/ http://127.0.0.1:8788/
+    ProxyPass /whatsapp-webhook http://127.0.0.1:8788/whatsapp-webhook
+    ProxyPassReverse /whatsapp-webhook http://127.0.0.1:8788/whatsapp-webhook
 </VirtualHost>
 APACHE
   sudo mkdir -p /etc/ssl/nadmo-scout
@@ -78,6 +80,8 @@ APACHE
     RewriteRule ^/scout-approval$ /scout-approval/ [R=301,L]
     ProxyPass /scout-approval/ http://127.0.0.1:8788/
     ProxyPassReverse /scout-approval/ http://127.0.0.1:8788/
+    ProxyPass /whatsapp-webhook http://127.0.0.1:8788/whatsapp-webhook
+    ProxyPassReverse /whatsapp-webhook http://127.0.0.1:8788/whatsapp-webhook
 </VirtualHost>
 
 <VirtualHost *:443>
@@ -90,6 +94,8 @@ APACHE
     RewriteRule ^/scout-approval$ /scout-approval/ [R=301,L]
     ProxyPass /scout-approval/ http://127.0.0.1:8788/
     ProxyPassReverse /scout-approval/ http://127.0.0.1:8788/
+    ProxyPass /whatsapp-webhook http://127.0.0.1:8788/whatsapp-webhook
+    ProxyPassReverse /whatsapp-webhook http://127.0.0.1:8788/whatsapp-webhook
 </VirtualHost>
 APACHE
 
@@ -286,7 +292,7 @@ PY
 curl -kfsS "https://$DOMAIN/scout-approval/api/_healthcheck"
 echo
 VERIFY_CHALLENGE="987654"
-VERIFY_RESULT="$(curl -kfsS "https://$DOMAIN/scout-approval/api/meta-whatsapp/webhook?hub.mode=subscribe&hub.verify_token=nadmo-scout-meta-verify-2026&hub.challenge=$VERIFY_CHALLENGE")"
+VERIFY_RESULT="$(curl -kfsS "https://$DOMAIN/whatsapp-webhook?hub.mode=subscribe&hub.verify_token=nadmo2026&hub.challenge=$VERIFY_CHALLENGE")"
 echo "Meta webhook handshake response: $VERIFY_RESULT"
 test "$VERIFY_RESULT" = "$VERIFY_CHALLENGE"
 cd "$SCOUT_DIR"
