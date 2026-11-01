@@ -28,6 +28,7 @@ Type=simple
 WorkingDirectory=/opt/nadmo/scout-approval-gateway
 Environment=PORT=8788
 Environment=DB_PATH=/opt/nadmo/scout-approval-gateway/data/scout-approval.sqlite3
+Environment=META_WHATSAPP_VERIFY_TOKEN=nadmo-scout-meta-verify-2026
 ExecStart=/usr/bin/python3 /opt/nadmo/scout-approval-gateway/server.py
 Restart=always
 RestartSec=3
