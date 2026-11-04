@@ -7,6 +7,7 @@ on:
 jobs:
   inspect:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     env:
       VPS_HOST: 151.243.222.93
       VPS_PORT: "45678"
@@ -19,12 +20,12 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass
           mkdir -p ~/.ssh
-          ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
-          sshpass -p "$VPS_PASSWORD" ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" '
+          ssh-keyscan -T 10 -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
+          sshpass -p "$VPS_PASSWORD" ssh -o ConnectTimeout=15 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" '
             echo "=== HEALTH ==="
-            curl -fsS http://127.0.0.1:8792/api/_healthcheck
+            curl -fsS --connect-timeout 5 --max-time 20 http://127.0.0.1:8792/api/_healthcheck
             echo
             echo "=== PRODUCTS ==="
-            curl -fsS "http://127.0.0.1:8792/api/products"
+            curl -fsS --connect-timeout 5 --max-time 20 "http://127.0.0.1:8792/api/products"
             echo
           '
