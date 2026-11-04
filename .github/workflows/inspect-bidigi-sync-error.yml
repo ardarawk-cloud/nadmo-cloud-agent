@@ -14,23 +14,6 @@ jobs:
       VPS_USER: root
       VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
     steps:
-      - name: Check configured VPS SSH endpoint
-        run: |
-          python3 - <<'PY'
-          import os, socket, sys
-          host = os.environ["VPS_HOST"]
-          port = int(os.environ["VPS_PORT"])
-          try:
-              with socket.create_connection((host, port), timeout=10) as connection:
-                  connection.settimeout(10)
-                  banner = connection.recv(128)
-              if not banner.startswith(b"SSH-"):
-                  raise RuntimeError("Endpoint did not return an SSH banner")
-              print("BIDIGI_VPS_SSH_AVAILABLE")
-          except Exception as error:
-              print("BIDIGI_VPS_SSH_UNREACHABLE:", type(error).__name__, str(error))
-              sys.exit(1)
-          PY
       - name: Read BIDIGI product API
         run: |
           set -Eeuo pipefail
@@ -38,7 +21,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass
           mkdir -p ~/.ssh
-          ssh-keyscan -T 10 -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
+          ssh-keyscan -t ed25519 -T 10 -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
           sshpass -p "$VPS_PASSWORD" ssh -o ConnectTimeout=15 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" '
             echo "=== HEALTH ==="
             curl -fsS --connect-timeout 5 --max-time 20 http://127.0.0.1:8792/api/_healthcheck
