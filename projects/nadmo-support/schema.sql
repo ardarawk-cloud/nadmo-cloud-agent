@@ -1,0 +1,8 @@
+-- NADMO SUPPORT D1 schema v1.0
+CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, pass_hash TEXT NOT NULL, salt TEXT NOT NULL, created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS creators (id TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE REFERENCES users(id), slug TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL, bio TEXT NOT NULL DEFAULT '', theme TEXT NOT NULL DEFAULT 'cyber', links_json TEXT NOT NULL DEFAULT '{}', goal_title TEXT NOT NULL DEFAULT '', goal_amount INTEGER NOT NULL DEFAULT 0, alert_enabled INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS payments (id TEXT PRIMARY KEY, creator_id TEXT NOT NULL REFERENCES creators(id), provider TEXT NOT NULL DEFAULT 'dana', provider_tx_id TEXT UNIQUE, donor_name TEXT NOT NULL DEFAULT 'Anonymous', donor_message TEXT NOT NULL DEFAULT '', amount INTEGER NOT NULL CHECK(amount >= 1000), currency TEXT NOT NULL DEFAULT 'IDR', status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','paid','failed','refunded')), consent_public INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, verified_at INTEGER);
+CREATE TABLE IF NOT EXISTS rate_limits (key TEXT PRIMARY KEY, window_start INTEGER NOT NULL, count INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_payments_creator ON payments(creator_id,status,verified_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_expire ON sessions(expires_at);
