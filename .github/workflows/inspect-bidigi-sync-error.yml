@@ -14,6 +14,23 @@ jobs:
       VPS_USER: root
       VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
     steps:
+      - name: Check configured VPS SSH endpoint
+        run: |
+          python3 - <<'PY'
+          import os, socket, sys
+          host = os.environ["VPS_HOST"]
+          port = int(os.environ["VPS_PORT"])
+          try:
+              with socket.create_connection((host, port), timeout=10) as connection:
+                  connection.settimeout(10)
+                  banner = connection.recv(128)
+              if not banner.startswith(b"SSH-"):
+                  raise RuntimeError("Endpoint did not return an SSH banner")
+              print("BIDIGI_VPS_SSH_AVAILABLE")
+          except Exception as error:
+              print("BIDIGI_VPS_SSH_UNREACHABLE:", type(error).__name__, str(error))
+              sys.exit(1)
+          PY
       - name: Read BIDIGI product API
         run: |
           set -euo pipefail
