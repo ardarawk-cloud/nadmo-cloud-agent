@@ -14,6 +14,21 @@ jobs:
       VPS_USER: root
       VPS_PASSWORD: ${{ secrets.NADMO_VPS_PASSWORD }}
     steps:
+      - name: Inspect public BIDIGI origin before SSH
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.error, urllib.request
+          request = urllib.request.Request("http://" + os.environ["VPS_HOST"] + "/api/_healthcheck", headers={"Host": "bidigi.nadmo.id"})
+          try:
+              with urllib.request.urlopen(request, timeout=15) as response:
+                  payload = json.load(response)
+              if payload.get("service") == "bidigi-core":
+                  print("BIDIGI_ORIGIN_HEALTH", json.dumps(payload))
+              else:
+                  print("BIDIGI_ORIGIN_NOT_ROUTED")
+          except Exception as error:
+              print("BIDIGI_ORIGIN_CHECK_FAILED", type(error).__name__, str(error))
+          PY
       - name: Read BIDIGI product API
         run: |
           set -Eeuo pipefail
@@ -21,7 +36,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq sshpass
           mkdir -p ~/.ssh
-          ssh-keyscan -t ed25519 -T 10 -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
+          ssh-keyscan -v -t ed25519 -T 10 -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
           sshpass -p "$VPS_PASSWORD" ssh -o ConnectTimeout=15 -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" '
             echo "=== HEALTH ==="
             curl -fsS --connect-timeout 5 --max-time 20 http://127.0.0.1:8792/api/_healthcheck
