@@ -1,0 +1,10 @@
+{
+  "name": "kai-ai-failover-staging",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": false,
+  "vars": {
+    "CF_ACCOUNT_ID": "ec7afabdad7a50dd2f40c3b094d19f4e",
+    "CF_GATEWAY_ID": "kai-failover-staging"
+  }
+}
