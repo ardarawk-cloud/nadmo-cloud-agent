@@ -6,6 +6,8 @@ Replaces the old provider billing requirement with two models hosted on Cloudfla
 
 Google Gemma 4 is NOT the Gemini API. Neither model uses an OpenAI, Claude, or Gemini API key. The account's other AI Gateway, kai-failover-staging, is NOT used by this native inference route.
 
+Both supported models have thinking mode disabled to conserve the free token budget on short questions. Real inference was tested successfully on both models (14 Nov 2026).
+
 Cloudflare Workers Free accounts receive 10,000 free Neurons per day across all Workers AI usage. Further calls fail when the quota is reached. If the account is on Workers Paid, overage may be billed. The connector could not read account subscriptions (403), so do not claim a verified no-cost plan until it is checked in the dashboard.
 
 Staging Worker: kai-ai-failover-staging, with workers.dev and preview URLs disabled. Neither NADMO LIVE nor ACC OS X production is modified.
