@@ -20,6 +20,7 @@ test("model one succeeds",async()=>{
   const o=await runChain(env,messages,128,async (id,body)=>{
     calls.push(id);
     assert.equal(body.max_completion_tokens,128);
+    assert.equal(body.chat_template_kwargs.enable_thinking,false);
     return {response:"GLM works"};
   });
   assert.equal(o.answer,"GLM works");
