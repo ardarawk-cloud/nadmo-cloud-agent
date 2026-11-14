@@ -1,44 +1,22 @@
-# KAI AI Failover v0.1 (STAGING)
+# KAI AI Failover v0.2: Free-first
 
-Independent, narrow AI inference router for ACC Enterprise. Does NOT replace ChatGPT UI, ChatGPT memory, plugins, or scheduled automations.
+Replaces the old provider billing requirement with two models hosted on Cloudflare Workers AI:
+1. Primary: @cf/zai-org/glm-4.7-flash
+2. Fallback: @cf/google/gemma-4-26b-a4b-it
 
-## Deployment
+Google Gemma 4 is NOT the Gemini API. Neither model uses an OpenAI, Claude, or Gemini API key. The account's other AI Gateway, kai-failover-staging, is NOT used by this native inference route.
 
-Cloudflare Worker: kai-ai-failover-staging (no public workers.dev domain or zone route).
-AI Gateway: kai-failover-staging (authenticated, BYOK only, logs off, caching off).
-Provider order: OpenAI gpt-5.5 -> Anthropic Claude Sonnet 5.5 -> Google Gemini 3.8 Flash.
+Cloudflare Workers Free accounts receive 10,000 free Neurons per day across all Workers AI usage. Further calls fail when the quota is reached. If the account is on Workers Paid, overage may be billed. The connector could not read account subscriptions (403), so do not claim a verified no-cost plan until it is checked in the dashboard.
 
-This Worker **fails closed** until both these Cloudflare Worker *secret_text* bindings are set:
-- KAI_ROUTER_TOKEN: unique, long private service-to-service bearer token.
-- CF_AIG_TOKEN: Cloudflare API token scoped to AI Gateway inference.
+Staging Worker: kai-ai-failover-staging, with workers.dev and preview URLs disabled. Neither NADMO LIVE nor ACC OS X production is modified.
 
-Provider keys must be added to the AI Gateway BYOK configuration for OpenAI, Anthropic, and Google. Without keys, no real model can run. Cloudflare account currently has zero AI Gateway balance and no payment method (as checked at setup).
+Internal endpoints:
+- GET /health: deployment readiness only, no secrets.
+- POST /v1/chat/completions: requires AI binding and private KAI_ROUTER_TOKEN secret; otherwise 503 fail-closed. Only text, maximum 6 messages, 1,500 characters per message, 4,000 total characters, 256 output tokens.
+- Uses two native env.AI.run calls sequentially on failures. An exhausted quota stops retries.
+- No CORS, no public route, no memory, no tool execution, no files, no admin access, no ChatGPT plugin reuse.
+- Future use by KAI ONE needs an authenticated internal service binding plus central memory and tool adapters.
+- Both models share Cloudflare infrastructure, so this does not cover Cloudflare-wide outages.
 
-## Endpoints
-
-- GET /health — non-sensitive staging readiness state.
-- POST /v1/chat/completions — requires router Bearer token; non-streaming, text-only, 1-8 short messages, 1-1024 max output tokens. Blocks requests until both secrets exist.
-- Response shape: OpenAI-compatible chat completion with extra \`kai\` metadata showing selected provider and whether failover was used.
-
-No tools, no GitHub edits, no Cloudflare mutations, no filesystem access, no user-upload handling, no persistent memory, and no production routes are attached.
-
-## Safeguards
-
-- Gateway authenticated, BYOK only, 10 requests / minute, US$1 spend cap per 24 hours.
-- No request/response logging and no AI response cache.
-- Two-stage authorization: secret Worker bearer + Cloudflare API token.
-- No CORS cross-origin authorization, no conversation storage.
-- Model fallback only when a provider errors before returning a usable answer; it does **not** retry failed tool actions.
-- Cloudflare outage remains a single point of failure. The eventual off-Cloudflare standby must run separately.
-
-## Tests
-
-Run \`node --test apps/kai-ai-failover/tests/failover.test.mjs\` from repository root. Tests mock all provider requests and incur no AI costs.
-
-## Next gated steps
-
-1. Store provider API keys in AI Gateway BYOK (or explicitly approve Unified Billing). Do not send keys in chat.
-2. Add scoped CF_AIG_TOKEN and random KAI_ROUTER_TOKEN via Cloudflare secret bindings.
-3. Verify test prompt on staging and observe real gateway logs/cost totals (leave payload logs off).
-4. Attach a protected internal service binding to ACC Enterprise. Never directly expose the router as a public unauthenticated API.
-5. Mirror master project memory in D1/R2 and implement provider-neutral tool adapters with action-specific approvals.
+Unit tests are fully mocked and consume zero Workers AI neurons.
+Run: node --test apps/kai-ai-failover/tests/failover.test.mjs
