@@ -1,80 +1,66 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import worker, { validateInput, runChain, extractText } from "../src/worker.mjs";
-
-const env = {
-  CF_ACCOUNT_ID: "fake-account",
-  CF_GATEWAY_ID: "kai-failover-staging",
-  CF_AIG_TOKEN: "fake-cf-token",
-  KAI_ROUTER_TOKEN: "fake-router-token"
-};
-const messages = [{ role: "user", content: "hello" }];
-const chatReply = (text) => new Response(JSON.stringify({ choices: [{ message: { content: text } }] }), { status: 200 });
-const claudeReply = (text) => new Response(JSON.stringify({ content: [{ type: "text", text }] }), { status: 200 });
-
-test("rejects invalid request and unsupported streaming", () => {
-  assert.throws(() => validateInput({ stream: true, messages }), /non-streaming/);
-  assert.throws(() => validateInput({ messages: [{ role: "user", content: "x".repeat(2501) }] }), /2500/);
+import worker,{FREE_MODELS,validateInput,extractText,runChain,ready} from "../src/worker.mjs";
+const messages=[{role:"user",content:"Halo KAI"}];
+const env={AI:{async run(){throw Error("Live inference prohibited in tests");}},KAI_ROUTER_TOKEN:"local-only"};
+test("only supported Cloudflare Workers AI models, no paid providers",()=>{
+  assert.deepEqual(FREE_MODELS.map(x=>x.id),["@cf/zai-org/glm-4.7-flash","@cf/google/gemma-4-26b-a4b-it"]);
 });
-test("primary provider succeeds", async () => {
-  const calls = [];
-  const result = await runChain(env, messages, 256, async (u, options) => {
-    calls.push(JSON.parse(options.body).model);
-    assert.equal(options.headers["cf-aig-gateway-id"], env.CF_GATEWAY_ID);
-    return chatReply("openai works");
+test("bounds request size, disables streaming",()=>{
+  assert.throws(()=>validateInput({messages,stream:true}),/non-streaming/);
+  assert.throws(()=>validateInput({messages,max_tokens:257}),/1-256/);
+  assert.throws(()=>validateInput({messages:[{role:"user",content:"A".repeat(1501)}]}),/Invalid/);
+});
+test("normalizes AI output formats",()=>{
+  assert.equal(extractText({response:"Hello"}),"Hello");
+  assert.equal(extractText({choices:[{message:{content:"Hi"}}]}),"Hi");
+});
+test("model one succeeds",async()=>{
+  const calls=[];
+  const o=await runChain(env,messages,128,async (id,body)=>{
+    calls.push(id);
+    assert.equal(body.max_completion_tokens,128);
+    return {response:"GLM works"};
   });
-  assert.equal(result.answer, "openai works");
-  assert.equal(result.step.provider, "openai");
-  assert.equal(result.usedFallback, false);
-  assert.deepEqual(calls, ["openai/gpt-5.5"]);
+  assert.equal(o.answer,"GLM works");
+  assert.equal(o.fallback,false);
+  assert.deepEqual(calls,[FREE_MODELS[0].id]);
 });
-test("falls back to Claude on primary upstream failure", async () => {
-  const calls = [];
-  const result = await runChain(env, messages, 256, async (u, options) => {
-    const p = JSON.parse(options.body);
-    calls.push(p.model);
-    return calls.length === 1 ? new Response("unavailable", { status: 503 }) : claudeReply("claude works");
+test("fallback to free Gemma after GLM fails",async()=>{
+  const calls=[];
+  const o=await runChain(env,messages,128,async id=>{
+    calls.push(id);
+    if(calls.length===1)throw Error("unavailable");
+    return {choices:[{message:{content:"Gemma works"}}]};
   });
-  assert.equal(result.answer, "claude works");
-  assert.equal(result.step.provider, "anthropic");
-  assert.equal(result.usedFallback, true);
-  assert.deepEqual(calls, ["openai/gpt-5.5", "anthropic/claude-sonnet-5.5"]);
+  assert.equal(o.answer,"Gemma works");
+  assert.equal(o.fallback,true);
+  assert.deepEqual(calls,FREE_MODELS.map(x=>x.id));
 });
-test("falls back to Gemini when first two fail", async () => {
-  const calls = [];
-  const result = await runChain(env, messages, 256, async (u, options) => {
-    calls.push(JSON.parse(options.body).model);
-    return calls.length < 3 ? new Response("unavailable", { status: 502 }) : chatReply("gemini works");
+test("quota error stops retry to protect shared free quota",async()=>{
+  let attempts=0;
+  const o=await runChain(env,messages,128,async ()=>{
+    attempts++;
+    throw Object.assign(Error("daily limit"),{code:"quota_exceeded"});
   });
-  assert.equal(result.step.provider, "google");
-  assert.equal(result.answer, "gemini works");
-  assert.equal(result.attempts, 3);
+  assert.equal(o.error,"FREE_MODELS_UNAVAILABLE");
+  assert.equal(attempts,1);
 });
-test("halts chain on Cloudflare authentication failure", async () => {
-  let count = 0;
-  const result = await runChain(env, messages, 256, async () => {
-    count++;
-    return new Response("forbidden", { status: 403 });
-  });
-  assert.equal(result.error, "NO_PROVIDER_AVAILABLE");
-  assert.equal(count, 1);
+test("both unavailable returns explicit error",async()=>{
+  const o=await runChain(env,messages,128,async()=>{throw Error("timeout");});
+  assert.equal(o.failures.length,2);
 });
-test("missing secrets fail closed with no vendor request", async () => {
-  const response = await worker.fetch(new Request("https://example.invalid/v1/chat/completions", {
-    method: "POST", body: JSON.stringify({ messages }), headers: { Authorization: "Bearer bogus" }
-  }), { CF_GATEWAY_ID: "kai-failover-staging" });
-  assert.equal(response.status, 503);
+test("absent secret disables chat even with AI binding",async()=>{
+  const o=await worker.fetch(new Request("https://invalid/v1/chat/completions",{method:"POST",body:JSON.stringify({messages})}),{AI:env.AI});
+  assert.equal(o.status,503);
+  assert.equal(ready({AI:env.AI}),false);
 });
-test("wrong authorization blocks a fully configured router", async () => {
-  const response = await worker.fetch(new Request("https://example.invalid/v1/chat/completions", {
-    method: "POST", body: JSON.stringify({ messages }), headers: { Authorization: "Bearer bad" }
-  }), env);
-  assert.equal(response.status, 401);
+test("auth denies unauthorized request",async()=>{
+  const o=await worker.fetch(new Request("https://invalid/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer wrong"},body:JSON.stringify({messages})}),env);
+  assert.equal(o.status,401);
 });
-test("health endpoint has no secrets", async () => {
-  const response = await worker.fetch(new Request("https://example.invalid/health"), env);
-  const body = await response.text();
-  assert.equal(response.status, 200);
-  assert.equal(body.includes("fake-cf-token"), false);
-  assert.equal(body.includes("fake-router-token"), false);
+test("health does not reveal secrets",async()=>{
+  const o=await worker.fetch(new Request("https://invalid/health"),env);
+  assert.equal(o.status,200);
+  assert.ok(!(await o.text()).includes("local-only"));
 });
