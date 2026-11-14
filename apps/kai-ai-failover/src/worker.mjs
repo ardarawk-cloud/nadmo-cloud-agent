@@ -56,7 +56,7 @@ export async function runChain(env,messages,maxTokens,invoke) {
   const failures=[];
   for(const model of FREE_MODELS) {
     try {
-      const data=await run(model.id,{messages,max_completion_tokens:maxTokens,stream:false});
+      const data=await run(model.id,{messages,max_completion_tokens:maxTokens,stream:false,chat_template_kwargs:{enable_thinking:false}});
       const answer=extractText(data);
       if(answer) return {answer,model,fallback:failures.length>0,attempts:failures.length+1};
       failures.push({model:model.label,status:"empty_reply"});
