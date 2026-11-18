@@ -11,7 +11,10 @@ Run: uvicorn app:app --host 127.0.0.1 --port 8000
 
 Security:
 - /health is public; state, events and mutations require Authorization: Bearer token.
-- /ws requires an Authorization header, so a direct browser WebSocket cannot authenticate yet. Use a same-origin authenticated gateway/session before enabling browser realtime.
+- /auth/login exchanges the owner token for a Secure HttpOnly SameSite=Strict session cookie; use HTTPS on the same origin as HQ.
+- /ws accepts that session cookie and validates Origin against KAI_CORE_ALLOWED_ORIGINS.
+- Browser mutations with cookie sessions require an allowed Origin; cross-origin browser deployment requires careful cookie and proxy design.
+- Never embed the owner token in public frontend code.
 - Task completion deliberately returns 409 until verified executor evidence exists.
 - SQLite snapshot persistence survives restarts only when DB_PATH uses a persistent mounted volume.
 - Single-process only: in-memory sockets and SQLite snapshots do not support multi-worker concurrency without redesign.
