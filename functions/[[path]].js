@@ -38,12 +38,14 @@ export async function onRequest(context){
    const b=await body(request);if(!b||typeof b.title!=="string"||!b.title.trim()||b.title.length>200||typeof b.division!=="string"||!b.division.trim()||b.division.length>80)return json({error:"invalid_goal"},400);
    const g={id:uid(),title:b.title.trim(),division:b.division.trim(),priority:"NORMAL",status:"ROUTING",created_at:now()};
    await db.prepare("INSERT INTO acc_hq_goals (id,title,division,priority,status,created_at,payload_json) VALUES (?,?,?,?,?,?,?)").bind(g.id,g.title,g.division,g.priority,g.status,g.created_at,JSON.stringify(g)).run();
+   await db.prepare("INSERT INTO acc_hq_events (id,event_type,created_at,payload_json) VALUES (?,?,?,?)").bind(uid(),"GOAL_CREATED",now(),JSON.stringify({goal_id:g.id,title:g.title,division:g.division})).run();
    return json(g,201);
   }
   if(path==="/tasks"&&request.method==="POST"){
    const b=await body(request);if(!b||typeof b.title!=="string"||!b.title.trim()||b.title.length>200||typeof b.agent_id!=="string"||!b.agent_id.trim()||typeof b.division!=="string"||!b.division.trim())return json({error:"invalid_task"},400);
    const t={id:uid(),title:b.title.trim(),agent_id:b.agent_id.trim(),division:b.division.trim(),goal_id:b.goal_id||null,status:"WAITING_DEPENDENCY",progress:0,created_at:now()};
    await db.prepare("INSERT INTO acc_hq_tasks (id,goal_id,title,agent_id,division,status,progress,created_at,payload_json) VALUES (?,?,?,?,?,?,?,?,?)").bind(t.id,t.goal_id,t.title,t.agent_id,t.division,t.status,0,t.created_at,JSON.stringify(t)).run();
+   await db.prepare("INSERT INTO acc_hq_events (id,event_type,created_at,payload_json) VALUES (?,?,?,?)").bind(uid(),"TASK_REGISTERED",now(),JSON.stringify({task_id:t.id,title:t.title,agent_id:t.agent_id,status:t.status})).run();
    return json(t,201);
   }
   if(/^\/tasks\/[^/]+\/complete$/.test(path)&&request.method==="POST")return json({error:"executor_evidence_required"},409);
@@ -56,6 +58,7 @@ export async function onRequest(context){
    if(existing.status!=="WAITING_OWNER")return json({error:"approval_already_resolved"},409);
    const status=b.decision==="APPROVE"?"APPROVED":"REJECTED";
    await db.prepare("UPDATE acc_hq_approvals SET status=?,decision=?,resolved_at=? WHERE id=? AND status='WAITING_OWNER'").bind(status,b.decision,now(),id).run();
+   await db.prepare("INSERT INTO acc_hq_events (id,event_type,created_at,payload_json) VALUES (?,?,?,?)").bind(uid(),"OWNER_DECISION",now(),JSON.stringify({approval_id:id,decision:b.decision})).run();
    return json({id,status,decision:b.decision});
   }
   if(/^\/tasks\/[^/]+\/start$/.test(path)&&request.method==="POST")return json({error:"executor_not_configured"},409);
