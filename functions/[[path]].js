@@ -47,6 +47,18 @@ export async function onRequest(context){
    return json(t,201);
   }
   if(/^\/tasks\/[^/]+\/complete$/.test(path)&&request.method==="POST")return json({error:"executor_evidence_required"},409);
+  const approvalMatch=path.match(/^\/approvals\/([^/]+)$/);
+  if(approvalMatch&&request.method==="POST"){
+   const b=await body(request);
+   if(!b||!["APPROVE","REJECT"].includes(b.decision))return json({error:"invalid_decision"},400);
+   const id=decodeURIComponent(approvalMatch[1]),existing=await db.prepare("SELECT id,status FROM acc_hq_approvals WHERE id=?").bind(id).first();
+   if(!existing)return json({error:"approval_not_found"},404);
+   if(existing.status!=="WAITING_OWNER")return json({error:"approval_already_resolved"},409);
+   const status=b.decision==="APPROVE"?"APPROVED":"REJECTED";
+   await db.prepare("UPDATE acc_hq_approvals SET status=?,decision=?,resolved_at=? WHERE id=? AND status='WAITING_OWNER'").bind(status,b.decision,now(),id).run();
+   return json({id,status,decision:b.decision});
+  }
+  if(/^\/tasks\/[^/]+\/start$/.test(path)&&request.method==="POST")return json({error:"executor_not_configured"},409);
   if(path==="/events"&&request.method==="GET"){const rows=await db.prepare("SELECT id,event_type AS type,created_at AS timestamp,payload_json FROM acc_hq_events ORDER BY created_at DESC LIMIT 50").all();return json(rows.results.map(x=>({...x,payload:JSON.parse(x.payload_json)})));}
   return json({error:"not_found"},404);
  }catch(error){return json({error:"storage_operation_failed"},500)}
