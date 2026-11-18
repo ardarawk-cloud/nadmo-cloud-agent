@@ -1,5 +1,6 @@
 import importlib.util
 import os
+import sys
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -13,6 +14,7 @@ def make_app(tmp_path, monkeypatch):
     monkeypatch.setenv("KAI_CORE_ALLOWED_ORIGINS", "https://hq.nadmo.id")
     spec = importlib.util.spec_from_file_location("kai_core_test_instance", MODULE)
     mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)
     return mod.app
 
