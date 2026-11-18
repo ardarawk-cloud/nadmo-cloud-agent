@@ -18,8 +18,8 @@ export async function onRequest(context){
  if(request.method!=="GET"&&request.method!=="HEAD"&&origin!==expected)return json({error:"origin_not_allowed"},403);
  if(path==="/auth/login"&&request.method==="POST"){
   const b=await body(request);if(!b||typeof b.token!=="string"||b.token!==env.ACC_HQ_OWNER_TOKEN)return json({error:"unauthorized"},401);
-  const expiry=String(Math.floor(Date.now()/1000)+8*3600),sig=await mac(env.ACC_HQ_OWNER_TOKEN,expiry);
-  return json({authenticated:true},200,{"set-cookie":`acc_owner=${expiry}.${sig}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=28800`});
+  const expiry=String(Math.floor(Date.now()/1000)+30*24*3600),sig=await mac(env.ACC_HQ_OWNER_TOKEN,expiry);
+  return json({authenticated:true},200,{"set-cookie":`acc_owner=${expiry}.${sig}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=2592000`});
  }
  if(!await authenticated(request,env.ACC_HQ_OWNER_TOKEN))return json({error:"unauthorized"},401);
  if(path==="/auth/logout"&&request.method==="POST")return json({authenticated:false},200,{"set-cookie":"acc_owner=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0"});
