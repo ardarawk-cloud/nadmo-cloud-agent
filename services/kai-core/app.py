@@ -201,6 +201,7 @@ async def start_task(task_id: str) -> dict[str, Any]:
 
 @app.post("/tasks/{task_id}/complete", dependencies=[Depends(require_owner)])
 async def complete_task(task_id: str) -> dict[str, Any]:
+    raise HTTPException(status_code=409, detail="executor_evidence_required")
     for task in STATE["tasks"]:
         if task["id"] == task_id:
             task["status"] = "WAITING_APPROVAL"
