@@ -181,6 +181,7 @@ async def emit(event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
 async def health() -> dict[str, Any]:
     return {
         "ok": True,
+        "mode": STATE["mode"],
         "service": "acc-kai-core",
         "version": app.version,
         "time": now_iso(),
@@ -241,27 +242,12 @@ async def start_task(task_id: str) -> dict[str, Any]:
                 },
             )
             return task
-    return {"error": "task_not_found"}
+    raise HTTPException(status_code=404, detail="task_not_found")
 
 @app.post("/tasks/{task_id}/complete", dependencies=[Depends(require_owner)])
 async def complete_task(task_id: str) -> dict[str, Any]:
+    # Only an authenticated, attested executor may request completion in a future release.
     raise HTTPException(status_code=409, detail="executor_evidence_required")
-    for task in STATE["tasks"]:
-        if task["id"] == task_id:
-            task["status"] = "WAITING_APPROVAL"
-            task["progress"] = 100
-            task["completed_at"] = now_iso()
-            approval = {
-                "id": str(uuid4()),
-                "task_id": task_id,
-                "status": "WAITING_OWNER",
-                "created_at": now_iso(),
-            }
-            STATE["approvals"].insert(0, approval)
-            await emit("task.completed", task)
-            await emit("approval.requested", approval)
-            return {"task": task, "approval": approval}
-    return {"error": "task_not_found"}
 
 @app.post("/approvals/{approval_id}", dependencies=[Depends(require_owner)])
 async def resolve_approval(
@@ -269,12 +255,14 @@ async def resolve_approval(
 ) -> dict[str, Any]:
     for approval in STATE["approvals"]:
         if approval["id"] == approval_id:
+            if approval["status"] != "WAITING_OWNER":
+                raise HTTPException(status_code=409, detail="approval_already_resolved")
             approval["status"] = body.decision
             approval["note"] = body.note
             approval["resolved_at"] = now_iso()
             await emit("approval.resolved", approval)
             return approval
-    return {"error": "approval_not_found"}
+    raise HTTPException(status_code=404, detail="approval_not_found")
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
@@ -303,4 +291,6 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
+        pass
+    finally:
         SOCKETS.discard(websocket)
