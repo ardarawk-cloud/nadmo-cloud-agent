@@ -5,13 +5,13 @@ const enc=new TextEncoder();
 const hex=bytes=>[...new Uint8Array(bytes)].map(x=>x.toString(16).padStart(2,"0")).join("");
 async function mac(secret,message){const key=await crypto.subtle.importKey("raw",enc.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);return hex(await crypto.subtle.sign("HMAC",key,enc.encode(message)));}
 function cookie(request){return (request.headers.get("cookie")||"").split(";").map(x=>x.trim()).find(x=>x.startsWith("acc_owner="))?.slice(10)||"";}
-async function authenticated(request,secret){const value=cookie(request),parts=value.split(".");if(parts.length!==2||!/^\\d+$/.test(parts[0])||Number(parts[0])<=Date.now()/1000)return false;return (await mac(secret,parts[0]))===parts[1];}
+async function authenticated(request,secret){const value=cookie(request),parts=value.split(".");if(parts.length!==2||!/^\d+$/.test(parts[0])||Number(parts[0])<=Date.now()/1000)return false;return (await mac(secret,parts[0]))===parts[1];}
 async function body(request){try{return await request.json()}catch{return null}}
 const uid=()=>crypto.randomUUID();
 const now=()=>new Date().toISOString();
 export async function onRequest(context){
  const {request,env}=context,url=new URL(request.url),path=url.pathname;
- if(!/^\\/(health|state|auth\\/(login|logout)|goals|tasks|approvals|events)(\\/|$)/.test(path))return context.next();
+ if(!/^\/(health|state|auth\/(login|logout)|goals|tasks|approvals|events)(\/|$)/.test(path))return context.next();
  if(path==="/health"&&request.method==="GET")return json({ok:!!(env.ACC_HQ_DB&&env.ACC_HQ_OWNER_TOKEN),service:"acc-kai-core",mode:"CONTROL_PLANE_ONLY",storage:env.ACC_HQ_DB?"D1":"UNBOUND"});
  if(!env.ACC_HQ_DB||!env.ACC_HQ_OWNER_TOKEN)return json({error:"backend_not_configured"},503);
  const origin=request.headers.get("origin"),expected=url.origin;
@@ -46,7 +46,7 @@ export async function onRequest(context){
    await db.prepare("INSERT INTO acc_hq_tasks (id,goal_id,title,agent_id,division,status,progress,created_at,payload_json) VALUES (?,?,?,?,?,?,?,?,?)").bind(t.id,t.goal_id,t.title,t.agent_id,t.division,t.status,0,t.created_at,JSON.stringify(t)).run();
    return json(t,201);
   }
-  if(/^\\/tasks\\/[^/]+\\/complete$/.test(path)&&request.method==="POST")return json({error:"executor_evidence_required"},409);
+  if(/^\/tasks\/[^/]+\/complete$/.test(path)&&request.method==="POST")return json({error:"executor_evidence_required"},409);
   if(path==="/events"&&request.method==="GET"){const rows=await db.prepare("SELECT id,event_type AS type,created_at AS timestamp,payload_json FROM acc_hq_events ORDER BY created_at DESC LIMIT 50").all();return json(rows.results.map(x=>({...x,payload:JSON.parse(x.payload_json)})));}
   return json({error:"not_found"},404);
  }catch(error){return json({error:"storage_operation_failed"},500)}
