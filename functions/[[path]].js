@@ -48,6 +48,25 @@ export async function onRequest(context){
    await db.prepare("INSERT INTO acc_hq_events (id,event_type,created_at,payload_json) VALUES (?,?,?,?)").bind(uid(),"TASK_REGISTERED",now(),JSON.stringify({task_id:t.id,title:t.title,agent_id:t.agent_id,status:t.status})).run();
    return json(t,201);
   }
+  const executeMatch=path.match(/^\/tasks\/([^/]+)\/execute$/);
+  if(executeMatch&&request.method==="POST"){
+   const id=decodeURIComponent(executeMatch[1]);
+   const record=await db.prepare("SELECT payload_json,status FROM acc_hq_tasks WHERE id=?").bind(id).first();
+   if(!record)return json({error:"task_not_found"},404);
+   const task=JSON.parse(record.payload_json);
+   if(task.agent_id!=="kai-one"||task.title!=="AUDIT ACC HQ DATABASE")return json({error:"executor_action_not_allowlisted",allowed_agent:"kai-one",allowed_title:"AUDIT ACC HQ DATABASE"},403);
+   if(record.status==="COMPLETED")return json({error:"already_completed"},409);
+   const checkedAt=now();
+   const checks=await Promise.all(["acc_hq_goals","acc_hq_tasks","acc_hq_approvals","acc_hq_events"].map(async name=>{
+    const result=await db.prepare("SELECT COUNT(*) AS total FROM "+name).first();
+    return {table:name,rows:result.total};
+   }));
+   const evidence={executor:"kai-one-d1-audit-v1",action:"READ_ONLY_DATABASE_AUDIT",checked_at:checkedAt,checks};
+   const completed={...task,status:"COMPLETED",progress:100,completed_at:checkedAt,evidence};
+   await db.prepare("UPDATE acc_hq_tasks SET status=?,progress=?,payload_json=? WHERE id=? AND status!='COMPLETED'").bind("COMPLETED",100,JSON.stringify(completed),id).run();
+   await db.prepare("INSERT INTO acc_hq_events (id,event_type,created_at,payload_json) VALUES (?,?,?,?)").bind(uid(),"TASK_EXECUTED",checkedAt,JSON.stringify({task_id:id,evidence})).run();
+   return json(completed);
+  }
   if(/^\/tasks\/[^/]+\/complete$/.test(path)&&request.method==="POST")return json({error:"executor_evidence_required"},409);
   const approvalMatch=path.match(/^\/approvals\/([^/]+)$/);
   if(approvalMatch&&request.method==="POST"){
