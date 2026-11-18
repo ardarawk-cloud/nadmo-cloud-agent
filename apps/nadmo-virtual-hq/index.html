@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
 <meta name="theme-color" content="#07090d"/>
-<title>ARDA CORE CORPORATION — KAI Virtual HQ V5.3</title>
+<title>ARDA CORE CORPORATION — KAI Virtual HQ — NEON NOIR</title>
 <style>
 :root{
   --bg:#06080d;--panel:rgba(8,13,20,.95);--line:rgba(125,215,255,.18);--line2:rgba(125,215,255,.34);
@@ -46,6 +46,28 @@ canvas{display:block;width:100%;height:100%}
 .modalBack{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center}.modalBack.open{display:flex}
 .modal{width:min(650px,calc(100vw - 24px));border:1px solid rgba(85,223,255,.4);border-radius:10px;background:#07121b;box-shadow:0 0 70px rgba(85,223,255,.12);padding:14px}.modal h2{font-size:13px;margin:0 0 3px}.modal>p{font-size:7px;color:var(--muted);margin:0 0 10px}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.field.full{grid-column:1/-1}.field label{display:block;font-size:6.5px;color:#86b3c5;text-transform:uppercase;letter-spacing:.09em;margin-bottom:4px}.field input,.field select,.field textarea{width:100%;border:1px solid rgba(85,223,255,.22);border-radius:5px;background:#051019;color:#eaf9ff;padding:8px;font-size:8px;outline:none}.field textarea{height:58px;resize:vertical}.modalActions{display:flex;justify-content:flex-end;gap:6px;margin-top:10px}.modalActions button{height:31px;padding:0 14px;border:1px solid var(--line);border-radius:5px;background:#081722;color:#bdefff;font-size:7px}.modalActions .go{border-color:rgba(255,211,95,.4);color:var(--gold)}
 @media(max-width:900px){.brand{min-width:155px}.brand small{display:none}.metric:nth-child(n+4){display:none}.hud{width:165px}.panel{right:6px;top:6px;bottom:6px;width:min(340px,94vw)}}
+
+/* ACC NEON NOIR — premium cyberpunk visual system */
+:root{--bg:#03050d;--panel:rgba(7,12,27,.94);--line:rgba(65,225,255,.22);--line2:rgba(66,229,255,.48);--text:#f2f8ff;--muted:#9aaec4;--cyan:#57f4ff;--green:#79ffc9;--gold:#f9d788;--pink:#ee75ff;--blue:#818cff}
+#app{background:radial-gradient(ellipse at 55% 6%,rgba(94,35,159,.25),transparent 50%),radial-gradient(ellipse at 15% 70%,rgba(13,127,171,.15),transparent 45%),#03050d}
+header{height:66px;padding:0 16px;background:linear-gradient(100deg,rgba(7,12,30,.98),rgba(12,8,29,.96));border-bottom:1px solid rgba(93,230,255,.34);box-shadow:0 8px 36px rgba(0,0,0,.45),inset 0 -1px 0 rgba(235,100,255,.13)}
+#app{grid-template-rows:66px 1fr}
+.logo{height:40px;width:40px;border-radius:11px;background:linear-gradient(145deg,rgba(79,241,255,.22),rgba(214,85,255,.2));border:1px solid rgba(93,235,255,.65);box-shadow:0 0 25px rgba(65,220,255,.16);font-size:20px;text-shadow:0 0 12px var(--cyan)}
+.brand b{font-size:12px;letter-spacing:.16em;text-shadow:0 0 18px rgba(86,236,255,.24)}.brand small{font-size:8px;color:#b7a8e7;letter-spacing:.14em}
+.metric{height:42px;min-width:106px;border-radius:9px;background:linear-gradient(150deg,rgba(36,56,83,.38),rgba(13,20,40,.52));border-color:rgba(108,214,255,.22)}
+.metric span{font-size:8px}.metric b{font-size:11px}.clock{font-size:11px;letter-spacing:.08em}
+.viewport:after{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0,transparent 5px,rgba(92,199,255,.014) 6px);opacity:.65}
+.topNote{top:14px;padding:10px 16px;font-size:10px;border-radius:999px;border-color:rgba(99,231,255,.34);background:rgba(6,12,27,.84);box-shadow:0 6px 28px rgba(0,0,0,.38)}
+.hud{top:17px;left:16px;width:245px;padding:16px;border-radius:15px;background:linear-gradient(150deg,rgba(10,20,42,.91),rgba(13,9,34,.84));border:1px solid rgba(95,235,255,.38);box-shadow:0 15px 40px rgba(0,0,0,.36),inset 2px 0 rgba(93,234,255,.45)}
+.hud .k{font-size:9px;color:#7eeeff}.hud b{font-size:12px;line-height:1.4;letter-spacing:.05em}.hud p{font-size:10px;line-height:1.5;color:#b1c4d9}.legend{gap:9px;margin-top:14px}.legend span{font-size:9px}
+.camBtns{left:16px;bottom:17px;gap:8px}.camBtns button{height:43px;width:43px;font-size:19px;border-radius:11px;background:rgba(11,22,42,.88);border-color:rgba(85,235,255,.36);box-shadow:0 0 20px rgba(42,214,255,.08)}
+.goalBtn{bottom:18px}.goalBtn button{height:45px;padding:0 22px;font-size:10px;letter-spacing:.1em;background:linear-gradient(120deg,#f9d788,#e7a8ff);border:0;color:#161025;box-shadow:0 8px 32px rgba(224,125,255,.28);font-weight:950}
+.panel{width:385px;border-radius:18px;border-color:rgba(95,235,255,.48);background:linear-gradient(155deg,rgba(13,20,45,.97),rgba(10,9,28,.97));box-shadow:0 22px 75px rgba(0,0,0,.65),0 0 35px rgba(83,232,255,.12);padding:18px}
+.profile h2{font-size:24px}.profile p{font-size:11px}.profile small{font-size:9px}.avatar{height:78px;border-radius:13px;background:linear-gradient(140deg,rgba(75,224,255,.2),rgba(199,82,255,.17));border-color:rgba(86,230,255,.55)}
+.statusline{font-size:10px}.actions button{height:38px;font-size:9px;border-radius:9px}.tabs button{font-size:9px;height:38px}.section h3{font-size:9px}.item{padding:12px;border-radius:10px}.item b{font-size:11px}.item span{font-size:9px}.empty{font-size:10px}.rowBtns button{font-size:9px;height:30px}
+.modal{background:linear-gradient(145deg,#0d1731,#120e29);border-color:rgba(85,233,255,.55);border-radius:17px;padding:22px}.modal h2{font-size:18px}.modal>p{font-size:11px}.field label{font-size:10px}.field input,.field select,.field textarea{font-size:13px;padding:11px}.modalActions button{font-size:11px;height:40px}
+@media(max-width:900px){header{padding:0 8px}.brand{min-width:155px}.metric{min-width:83px}.metric span{font-size:7px}.metric b{font-size:9px}.hud{width:180px;left:8px;top:10px;padding:11px}.hud p{font-size:9px}.hud b{font-size:10px}.legend span{font-size:8px}.topNote{top:auto;bottom:72px;left:50%;max-width:48vw;overflow:hidden;text-overflow:ellipsis;font-size:8px}.panel{width:min(385px,95vw)}.goalBtn button{height:42px;font-size:9px;padding:0 14px}}
+@media(max-width:550px){.brand{min-width:132px}.brand b{font-size:9px}.logo{width:33px;height:33px}.metric:nth-child(n+2){display:none}.hud{width:155px}.hud .legend{grid-template-columns:1fr 1fr}.topNote{display:none}.goalBtn{left:auto;right:8px;transform:none}.goalBtn button{max-width:170px}.camBtns{bottom:13px;left:8px}.camBtns button{width:36px;height:36px}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://unpkg.com/three@0.181.1/build/three.module.js","three/addons/":"https://unpkg.com/three@0.181.1/examples/jsm/"}}
@@ -55,7 +77,7 @@ canvas{display:block;width:100%;height:100%}
 <div id="app">
 <header>
   <div class="logo">A</div>
-  <div class="brand"><b>ARDA CORE CORPORATION</b><small>KAI VIRTUAL HQ · CUTAWAY MODE · V5.3</small></div>
+  <div class="brand"><b>ARDA CORE CORPORATION</b><small>KAI VIRTUAL HQ · NEON NOIR EDITION</small></div>
   <div class="metrics">
     <div class="metric live"><span>GitHub</span><b id="gitStatus">CONNECTING</b></div>
     <div class="metric"><span>Active Tasks</span><b id="taskCount">0</b></div>
@@ -172,8 +194,8 @@ function log(msg){const t=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute
 
 const wrap=$('#canvasWrap');
 const scene=new THREE.Scene();
-scene.background=new THREE.Color(0x080b11);
-scene.fog=new THREE.FogExp2(0x080b11,.014);
+scene.background=new THREE.Color(0x040713);
+scene.fog=new THREE.FogExp2(0x09091a,.012);
 
 const camera=new THREE.PerspectiveCamera(38,wrap.clientWidth/wrap.clientHeight,.1,120);
 camera.position.set(0,7.2,29);
@@ -185,7 +207,7 @@ renderer.setSize(wrap.clientWidth,wrap.clientHeight);
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.25;
+renderer.toneMappingExposure=1.12;
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 wrap.appendChild(renderer.domElement);
 
@@ -199,9 +221,10 @@ controls.minDistance=18;
 controls.maxDistance=42;
 controls.target.set(0,4.5,0);
 
-scene.add(new THREE.HemisphereLight(0xc5eeff,0x05080d,1.55));
+scene.add(new THREE.HemisphereLight(0xa2dcff,0x13091f,1.25));
 const mainLight=new THREE.DirectionalLight(0xf0f8ff,3);mainLight.position.set(7,18,18);mainLight.castShadow=true;mainLight.shadow.mapSize.set(2048,2048);scene.add(mainLight);
-const sideLight=new THREE.DirectionalLight(0x4c7dff,1.1);sideLight.position.set(-12,7,8);scene.add(sideLight);
+const sideLight=new THREE.DirectionalLight(0x9e4bff,1.55);sideLight.position.set(-12,7,8);scene.add(sideLight);
+const neonRim=new THREE.DirectionalLight(0x37e8ff,1.15);neonRim.position.set(13,9,-8);scene.add(neonRim);
 
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(42,22),new THREE.MeshStandardMaterial({color:0x080d13,metalness:.4,roughness:.76}));
 ground.rotation.x=-Math.PI/2;ground.position.y=-2;ground.receiveShadow=true;scene.add(ground);
