@@ -4,9 +4,12 @@ import os
 import json
 import sqlite3
 import secrets
+import hmac
+import hashlib
+import time
 from pathlib import Path
 from contextlib import asynccontextmanager
-from fastapi import Request, HTTPException, Depends, status
+from fastapi import Request, Response, HTTPException, Depends, status
 from datetime import datetime, timezone
 from typing import Any, Literal
 from uuid import uuid4
@@ -17,14 +20,55 @@ from pydantic import BaseModel, Field
 
 DB_PATH = os.getenv("KAI_CORE_DB_PATH", "/data/kai-core.sqlite3")
 OWNER_TOKEN = os.getenv("KAI_CORE_OWNER_TOKEN", "")
+SESSION_TTL = 8 * 3600
 ALLOWED_ORIGINS = [x.strip() for x in os.getenv("KAI_CORE_ALLOWED_ORIGINS", "").split(",") if x.strip()]
+
+def session_signature(expiry: int) -> str:
+    return hmac.new(OWNER_TOKEN.encode(), str(expiry).encode(), hashlib.sha256).hexdigest()
+
+def valid_session(cookie: str | None) -> bool:
+    if not OWNER_TOKEN or not cookie:
+        return False
+    try:
+        expiry_text, signature = cookie.split(".", 1)
+        expiry = int(expiry_text)
+        return expiry > time.time() and hmac.compare_digest(signature, session_signature(expiry))
+    except (ValueError, TypeError):
+        return False
 
 def require_owner(request: Request) -> None:
     if not OWNER_TOKEN:
         raise HTTPException(status_code=503, detail="owner_token_not_configured")
-    token = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
-    if not secrets.compare_digest(token, OWNER_TOKEN):
+    bearer = request.headers.get("authorization", "")
+    token = bearer.removeprefix("Bearer ").strip() if bearer.startswith("Bearer ") else ""
+    authenticated = bool(token and secrets.compare_digest(token, OWNER_TOKEN))
+    authenticated = authenticated or valid_session(request.cookies.get("acc_owner"))
+    if not authenticated:
         raise HTTPException(status_code=401, detail="unauthorized")
+    if request.method not in ("GET", "HEAD", "OPTIONS") and not token:
+        origin = request.headers.get("origin", "")
+        if origin not in ALLOWED_ORIGINS:
+            raise HTTPException(status_code=403, detail="origin_not_allowed")
+
+class LoginRequest(BaseModel):
+    token: str
+
+@app.post("/auth/login")
+async def login(body: LoginRequest, response: Response) -> dict[str, bool]:
+    if not OWNER_TOKEN:
+        raise HTTPException(status_code=503, detail="owner_token_not_configured")
+    if not secrets.compare_digest(body.token, OWNER_TOKEN):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    expiry = int(time.time()) + SESSION_TTL
+    response.set_cookie("acc_owner", f"{expiry}.{session_signature(expiry)}",
+                        httponly=True, secure=True, samesite="strict",
+                        max_age=SESSION_TTL, path="/")
+    return {"authenticated": True}
+
+@app.post("/auth/logout", dependencies=[Depends(require_owner)])
+async def logout(response: Response) -> dict[str, bool]:
+    response.delete_cookie("acc_owner", path="/")
+    return {"authenticated": False}
 
 def db_connect():
     Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
@@ -234,8 +278,12 @@ async def resolve_approval(
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
-    token = websocket.headers.get("authorization", "").removeprefix("Bearer ").strip()
-    if not OWNER_TOKEN or not secrets.compare_digest(token, OWNER_TOKEN):
+    bearer = websocket.headers.get("authorization", "")
+    token = bearer.removeprefix("Bearer ").strip() if bearer.startswith("Bearer ") else ""
+    authorized = bool(OWNER_TOKEN and token and secrets.compare_digest(token, OWNER_TOKEN))
+    authorized = authorized or valid_session(websocket.cookies.get("acc_owner"))
+    origin = websocket.headers.get("origin", "")
+    if not authorized or (origin and origin not in ALLOWED_ORIGINS):
         await websocket.close(code=1008)
         return
     await websocket.accept()
