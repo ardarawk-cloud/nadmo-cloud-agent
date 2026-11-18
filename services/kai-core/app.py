@@ -50,25 +50,6 @@ def require_owner(request: Request) -> None:
         if origin not in ALLOWED_ORIGINS:
             raise HTTPException(status_code=403, detail="origin_not_allowed")
 
-class LoginRequest(BaseModel):
-    token: str
-
-@app.post("/auth/login")
-async def login(body: LoginRequest, response: Response) -> dict[str, bool]:
-    if not OWNER_TOKEN:
-        raise HTTPException(status_code=503, detail="owner_token_not_configured")
-    if not secrets.compare_digest(body.token, OWNER_TOKEN):
-        raise HTTPException(status_code=401, detail="unauthorized")
-    expiry = int(time.time()) + SESSION_TTL
-    response.set_cookie("acc_owner", f"{expiry}.{session_signature(expiry)}",
-                        httponly=True, secure=True, samesite="strict",
-                        max_age=SESSION_TTL, path="/")
-    return {"authenticated": True}
-
-@app.post("/auth/logout", dependencies=[Depends(require_owner)])
-async def logout(response: Response) -> dict[str, bool]:
-    response.delete_cookie("acc_owner", path="/")
-    return {"authenticated": False}
 
 def db_connect():
     Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
@@ -94,6 +75,26 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="ACC KAI Core", version="0.2.0", lifespan=lifespan)
+
+class LoginRequest(BaseModel):
+    token: str
+
+@app.post("/auth/login")
+async def login(body: LoginRequest, response: Response) -> dict[str, bool]:
+    if not OWNER_TOKEN:
+        raise HTTPException(status_code=503, detail="owner_token_not_configured")
+    if not secrets.compare_digest(body.token, OWNER_TOKEN):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    expiry = int(time.time()) + SESSION_TTL
+    response.set_cookie("acc_owner", f"{expiry}.{session_signature(expiry)}",
+                        httponly=True, secure=True, samesite="strict",
+                        max_age=SESSION_TTL, path="/")
+    return {"authenticated": True}
+
+@app.post("/auth/logout", dependencies=[Depends(require_owner)])
+async def logout(response: Response) -> dict[str, bool]:
+    response.delete_cookie("acc_owner", path="/")
+    return {"authenticated": False}
 
 app.add_middleware(
     CORSMiddleware,
